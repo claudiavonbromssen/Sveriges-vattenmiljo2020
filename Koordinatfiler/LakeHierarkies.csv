@@ -1,0 +1,157 @@
+Stationsnamn,StationsID,VattenförekomstID,Typ,Vattenmiljö,Region,long,lat
+Brännträsket,SE728095-175926,WA90190526,Sjö,Sjöar och Vattendrag,Norra Sverige,21.4169258,65.5262484
+Bergträsket,SE733110-182955,WA66160412,Sjö,Sjöar och Vattendrag,Norra Sverige,23.04998021,65.90888135
+Källsjön,SE683582-154935,WA29887255,Sjö,Sjöar och Vattendrag,Norra Sverige,16.73574862,61.633598
+V. Rännöbodsjön,SE691365-156127,WA17667097,Sjö,Sjöar och Vattendrag,Norra Sverige,16.98720916,62.33010177
+Valasjön,SE698918-158665,WA57901934,Sjö,Sjöar och Vattendrag,Norra Sverige,17.51528741,63.00245108
+Svartvattnet,SE706672-167201,WA99627860,Sjö,Sjöar och Vattendrag,Norra Sverige,19.28021825,63.6664772
+Sidensjön,SE709218-169710,WA64907980,Sjö,Sjöar och Vattendrag,Norra Sverige,19.81800274,63.8812076
+Täftesträsket,SE711365-171748,WA88766629,Sjö,Sjöar och Vattendrag,Norra Sverige,20.26201723,64.06114768
+Bjännsjön,SE713404-172465,WA28784510,Sjö,Sjöar och Vattendrag,Norra Sverige,20.43873091,64.2388836
+Gosjön,SE677506-156174,WA20127072,Sjö,Sjöar och Vattendrag,Norra Sverige,16.94931226,61.08667172
+Spjutsjön,SE672467-148031,WA42559716,Sjö,Sjöar och Vattendrag,Norra Sverige,15.44527639,60.63879257
+Njalakjaure,SE741340-153576,WA64432104,Sjö,Sjöar och Vattendrag,Fjäll,16.61849869,66.81563475
+Ö. Särnamannasjön,SE683337-133785,WA41997143,Sjö,Sjöar och Vattendrag,Fjäll,12.75161621,61.58062555
+N. Särnamannasjön,SE683421-133742,WA25434149,Sjö,Sjöar och Vattendrag,Fjäll,12.74277214,61.58797879
+Gåtejaure,SE698735-139620,WA48463242,Sjö,Sjöar och Vattendrag,Fjäll,13.75763202,62.98151625
+Vuolejaure,SE698561-139682,WA84032761,Sjö,Sjöar och Vattendrag,Fjäll,13.77092889,62.96608514
+Vitträsket,SE718150-168580,WA48721021,Sjö,Sjöar och Vattendrag,Norra Sverige,19.69978073,64.68678911
+Norra Reivo,SE730091-165102,WA24034604,Sjö,Sjöar och Vattendrag,Norra Sverige,19.10292954,65.77342552
+Pahajärvi,SE742829-183168,WA21335710,Sjö,Sjöar och Vattendrag,Norra Sverige,23.3528896,66.77094257
+Jutsajaure,SE744629-167999,WA55325208,Sjö,Sjöar och Vattendrag,Norra Sverige,19.94364702,67.05896493
+Valkeajärvi,SE751252-175433,WA51513798,Sjö,Sjöar och Vattendrag,Norra Sverige,21.78979408,67.59630346
+Stensjön,SE683673-154083,WA70448628,Sjö,Sjöar och Vattendrag,Norra Sverige,16.57530668,61.64275858
+Hällvattnet,SE704955-159090,WA38350845,Sjö,Sjöar och Vattendrag,Norra Sverige,17.63305269,63.54273394
+Remmarsjön,SE708619-162132,WA79262932,Sjö,Sjöar och Vattendrag,Norra Sverige,18.27263642,63.86203581
+Rödingträsket,SE711924-163150,WA29110008,Sjö,Sjöar och Vattendrag,Norra Sverige,18.50792302,64.15450102
+Ögerträsket,SE712246-170866,WA89985235,Sjö,Sjöar och Vattendrag,Norra Sverige,20.09400415,64.14537231
+Långsjön,SE673534-153381,WA42150382,Sjö,Sjöar och Vattendrag,Norra Sverige,16.42480366,60.73361821
+Abiskojaure,SE758208-161749,WA29045099,Sjö,Sjöar och Vattendrag,Norra Sverige,18.65249233,68.30582634
+Stor-Arasjön,SE716717-158596,WA36818659,Sjö,Sjöar och Vattendrag,Norra Sverige,17.60035039,64.59856517
+Storvindeln,SE728271-157578,WA38760283,Sjö,Sjöar och Vattendrag,Norra Sverige,17.45064539,65.63685977
+Vuolgamjaure,SE728744-162653,WA96766414,Sjö,Sjöar och Vattendrag,Norra Sverige,18.55606474,65.66334526
+Louvvajaure,SE736804-160569,WA66869503,Sjö,Sjöar och Vattendrag,Norra Sverige,18.16945192,66.39306653
+Båtkåjaure,SE742442-153530,WA96539378,Sjö,Sjöar och Vattendrag,Norra Sverige,16.61125794,66.91449301
+Latnjajaure,SE758677-161050,WA49065685,Sjö,Sjöar och Vattendrag,Norra Sverige,18.48826256,68.35064395
+Tryssjön,SE670275-146052,WA89222377,Sjö,Sjöar och Vattendrag,Norra Sverige,15.08803598,60.44061176
+Sangen,SE686849-145214,WA48440228,Sjö,Sjöar och Vattendrag,Norra Sverige,14.89383411,61.92688802
+Tväringen,SE690345-149315,WA90290627,Sjö,Sjöar och Vattendrag,Norra Sverige,15.67327384,62.24352999
+Fyrsjön,SE704082-148125,WA80286207,Sjö,Sjöar och Vattendrag,Norra Sverige,15.42884778,63.47555948
+Degervattnet,SE708512-152086,WA39243328,Sjö,Sjöar och Vattendrag,Norra Sverige,16.2293611,63.87283721
+Stor-Tjulträsket,SE731799-151196,WA41975577,Sjö,Sjöar och Vattendrag,Norra Sverige,16.06788438,65.96191403
+Övre Fjätsjön,SE690617-134197,WA93182800,Sjö,Sjöar och Vattendrag,Norra Sverige,12.76490708,62.23466928
+Tronntjärnarna,SE698860-135948,,Sjö,Sjöar och Vattendrag,Norra Sverige,13.03317677,62.98037488
+Östra Helgtjärnen,SE700796-136901,WA20212661,Sjö,Sjöar och Vattendrag,Norra Sverige,13.20551578,63.15698998
+Stor-Björsjön,SE706083-132287,WA25599103,Sjö,Sjöar och Vattendrag,Norra Sverige,12.23320879,63.6111459
+Rädsjön,SE674570-141911,WA24280365,Sjö,Sjöar och Vattendrag,Norra Sverige,14.31845746,60.81977642
+Bösjön,SE680235-141799,WA63146294,Sjö,Sjöar och Vattendrag,Norra Sverige,14.27350522,61.32776045
+Stor-Backsjön,SE695220-143383,WA51284243,Sjö,Sjöar och Vattendrag,Norra Sverige,14.51347677,62.67504045
+Dunnervattnet,SE713131-144608,WA64322958,Sjö,Sjöar och Vattendrag,Norra Sverige,14.69169129,64.28355248
+Gipsjön,SE672729-138082,WA67930382,Sjö,Sjöar och Vattendrag,Norra Sverige,13.62645692,60.64504778
+Horsan,SE642008-168013,WA25839981,Sjö,Sjöar och Vattendrag,Södra Sverige,18.84089813,57.8688197
+Bästeträsk,SE642555-168553,WA14564967,Sjö,Sjöar och Vattendrag,Södra Sverige,18.93602139,57.91565168
+Tärnan,SE660688-164478,WA18225072,Sjö,Sjöar och Vattendrag,Södra Sverige,18.36602533,59.55703801
+Fysingen,SE660749-161885,WA17184339,Sjö,Sjöar och Vattendrag,Södra Sverige,17.90810384,59.57066973
+Edasjön,SE663365-161779,WA97078589,Sjö,Sjöar och Vattendrag,Södra Sverige,17.90399756,59.80562908
+Ekholmssjön,SE663907-156927,WA38386938,Sjö,Sjöar och Vattendrag,Södra Sverige,17.04155307,59.86521109
+Siggeforasjön,SE665175-157559,WA74960253,Sjö,Sjöar och Vattendrag,Södra Sverige,17.15894357,59.9778841
+Ämten,SE661206-147901,WA43691040,Sjö,Sjöar och Vattendrag,Södra Sverige,15.4331555,59.62802468
+Lien,SE663216-148449,WA68069464,Sjö,Sjöar och Vattendrag,Södra Sverige,15.52877924,59.80868049
+Övre Skärsjön,SE663532-148571,WA61007061,Sjö,Sjöar och Vattendrag,Södra Sverige,15.5502998,59.83708487
+Dagarn,SE664197-149337,WA79921026,Sjö,Sjöar och Vattendrag,Södra Sverige,15.6866801,59.89696781
+Västra Skälsjön,SE664620-148590,WA76489320,Sjö,Sjöar och Vattendrag,Södra Sverige,15.55293675,59.93475419
+Mäsen,SE665654-149206,WA42018902,Sjö,Sjöar och Vattendrag,Södra Sverige,15.66272649,60.02772583
+Hällsjön,SE667151-149602,WA23078743,Sjö,Sjöar och Vattendrag,Södra Sverige,15.73344593,60.1621436
+Djupa Holmsjön,SE656263-156963,WA64588793,Sjö,Sjöar och Vattendrag,Södra Sverige,17.02301225,59.17915186
+Stensjön,SE656515-164330,WA40009280,Sjö,Sjöar och Vattendrag,Södra Sverige,18.31375691,59.18257519
+Årsjön,SE656612-164132,WA17355956,Sjö,Sjöar och Vattendrag,Södra Sverige,18.27812516,59.19268266
+Långsjön,SE656640-164224,WA38535539,Sjö,Sjöar och Vattendrag,Södra Sverige,18.29436162,59.19484225
+Flaten,SE657226-163399,WA64410428,Sjö,Sjöar och Vattendrag,Södra Sverige,18.15382035,59.25013964
+Långsjön,SE657387-162326,WA25215341,Sjö,Sjöar och Vattendrag,Södra Sverige,17.96671191,59.26779714
+Trekanten,SE657886-162585,WA69010885,Sjö,Sjöar och Vattendrag,Södra Sverige,18.01508954,59.31184949
+Skärgölen,SE651573-152481,WA99393201,Sjö,Sjöar och Vattendrag,Södra Sverige,16.23389749,58.76312049
+Rundbosjön,SE652177-159038,WA44530315,Sjö,Sjöar och Vattendrag,Södra Sverige,17.36908583,58.80859493
+Björken,SE652707-159032,WA31838586,Sjö,Sjöar och Vattendrag,Södra Sverige,17.37018582,58.85616535
+Älgsjön,SE655275-153234,WA16744634,Sjö,Sjöar och Vattendrag,Södra Sverige,16.36940029,59.09493802
+Lillsjön,SE655380-155738,WA21110270,Sjö,Sjöar och Vattendrag,Södra Sverige,16.80647933,59.101733
+Stora Envättern,SE655605-158820,WA98720344,Sjö,Sjöar och Vattendrag,Södra Sverige,17.34494777,59.11664663
+N. Yngern,SE656206-159170,WA84246238,Sjö,Sjöar och Vattendrag,Södra Sverige,17.408631,59.16986156
+Röttleån Röttle,SE643092-141875,WA40015043,Sjö,Sjöar och Vattendrag,Södra Sverige,14.43131454,57.99499122
+Gagnån,SE643205-140046,WA61963298,Sjö,Sjöar och Vattendrag,Södra Sverige,14.12171175,58.00140483
+St. Lummersjön,SE644463-139986,WA97718019,Sjö,Sjöar och Vattendrag,Södra Sverige,14.10621026,58.1141704
+Orrnäsån Ödeshög,SE645625-143105,WA80264969,Sjö,Sjöar och Vattendrag,Södra Sverige,14.63162769,58.22397892
+Ålebäcken,SE646330-143190,,Sjö,Sjöar och Vattendrag,Södra Sverige,14.64384027,58.2879368
+Hjoån Utl. Vättern,SE646546-141100,WA79326117,Sjö,Sjöar och Vattendrag,Södra Sverige,14.29010899,58.30263894
+Jungfrun NV,SE648694-143413,WA11665077,Sjö,Sjöar och Vattendrag,Södra Sverige,14.67542417,58.50038988
+Älgarydssjön,SE633989-140731,WA35245623,Sjö,Sjöar och Vattendrag,Södra Sverige,14.27271703,57.17569258
+Stengårdshultasjön,SE638317-138010,WA51402516,Sjö,Sjöar och Vattendrag,Södra Sverige,13.80204162,57.55777465
+Munksjöns utlopp,SE640750-140230,WA72189945,Sjö,Sjöar och Vattendrag,Södra Sverige,14.16793691,57.78155146
+Huskvarnaån Vättern,SE640881-140842,WA11382900,Sjö,Sjöar och Vattendrag,Södra Sverige,14.26522422,57.79453077
+Edeskvarnaån NV,SE642140-140640,WA11665077,Sjö,Sjöar och Vattendrag,Södra Sverige,14.22632606,57.90712114
+Hökesån,SE642260-139876,WA33304329,Sjö,Sjöar och Vattendrag,Södra Sverige,14.09700438,57.91622056
+Knipån Kvarnekulla,SE642517-139895,WA85766605,Sjö,Sjöar och Vattendrag,Södra Sverige,14.09912668,57.93932102
+Hjärtsjön,SE632515-146675,WA78510341,Sjö,Sjöar och Vattendrag,Södra Sverige,15.2573361,57.05149908
+Tångerdasjön,SE637120-145525,WA66779230,Sjö,Sjöar och Vattendrag,Södra Sverige,15.0595434,57.46398453
+Tängersjö,SE637121-151366,WA18431640,Sjö,Sjöar och Vattendrag,Södra Sverige,16.03284091,57.46609333
+Fjärasjö,SE638725-146677,WA41982859,Sjö,Sjöar och Vattendrag,Södra Sverige,15.24929754,57.60909313
+Hökesjön,SE639047-149701,WA75730914,Sjö,Sjöar och Vattendrag,Södra Sverige,15.75515303,57.63921534
+Skärgölen,SE640609-148673,WA91168817,Sjö,Sjöar och Vattendrag,Södra Sverige,15.58217274,57.77928036
+Glimmingen,SE642122-148744,WA33559863,Sjö,Sjöar och Vattendrag,Södra Sverige,15.57054096,57.93826869
+Svartesjön,SE630558-134327,,Sjö,Sjöar och Vattendrag,Södra Sverige,13.23620875,56.85051003
+Harasjön,SE632231-136476,WA20819678,Sjö,Sjöar och Vattendrag,Södra Sverige,13.57921446,57.00739037
+Skärsjön,SE633344-130068,WA12885229,Sjö,Sjöar och Vattendrag,Södra Sverige,12.51730959,57.08398532
+Nässjön,NW634160-133385,WA70761118,Sjö,Sjöar och Vattendrag,Södra Sverige,13.06737,57.17232
+Hagasjön,SE635878-137392,WA64825705,Sjö,Sjöar och Vattendrag,Södra Sverige,13.71142536,57.33724664
+Lilla Öresjön,SE638665-129243,WA89076362,Sjö,Sjöar och Vattendrag,Södra Sverige,12.33679175,57.55726646
+Stora Härsjön,SE640364-129240,WA75449417,Sjö,Sjöar och Vattendrag,Södra Sverige,12.32172018,57.7095249
+Svinarydsjön,SE622803-144609,WA43427014,Sjö,Sjöar och Vattendrag,Södra Sverige,14.93721179,56.17746481
+Sännen,SE624421-147234,WA21863308,Sjö,Sjöar och Vattendrag,Södra Sverige,15.35816369,56.32501995
+Trehörningen,SE626238-148299,WA10469843,Sjö,Sjöar och Vattendrag,Södra Sverige,15.52911597,56.48869841
+Brunnsjön,SE627443-149526,WA13784515,Sjö,Sjöar och Vattendrag,Södra Sverige,15.72807059,56.59720281
+Tomeshultagölen,SE629026-147562,WA37237278,Sjö,Sjöar och Vattendrag,Södra Sverige,15.40684797,56.73873841
+Hinnasjön,SE630605-144655,WA52131288,Sjö,Sjöar och Vattendrag,Södra Sverige,14.92857653,56.87810012
+Storasjö,SE631360-146750,WA93641753,Sjö,Sjöar och Vattendrag,Södra Sverige,15.27118614,56.94783586
+Krageholmssjön,SE615375-137087,WA92239891,Sjö,Sjöar och Vattendrag,Södra Sverige,13.76198963,55.49631056
+Lillesjö,SE623161-142148,WA93220370,Sjö,Sjöar och Vattendrag,Södra Sverige,14.53998621,56.2061939
+Bäen,SE623624-141149,WA93163816,Sjö,Sjöar och Vattendrag,Södra Sverige,14.37752741,56.24600455
+Örsjön,SE624038-143063,WA49933782,Sjö,Sjöar och Vattendrag,Södra Sverige,14.68510196,56.28636014
+Fiolen,SE633025-142267,WA60899891,Sjö,Sjöar och Vattendrag,Södra Sverige,14.52958559,57.09198875
+Gyslättasjön,SE633209-141991,WA14574773,Sjö,Sjöar och Vattendrag,Södra Sverige,14.48348553,57.10804046
+Stora Skärsjön,SE633738-142203,WA54145176,Sjö,Sjöar och Vattendrag,Södra Sverige,14.51680635,57.15589326
+Havgårdssjön,SE615365-134524,WA56806681,Sjö,Sjöar och Vattendrag,Södra Sverige,13.35687085,55.4879764
+Krankesjön,SE617797-135339,WA94704410,Sjö,Sjöar och Vattendrag,Södra Sverige,13.47275316,55.708743
+Västra Ringsjön,SE620062-135224,WA55412723,Sjö,Sjöar och Vattendrag,Södra Sverige,13.47214225,55.89261536
+Finjasjön,SE622731-136920,WA15048302,Sjö,Sjöar och Vattendrag,Södra Sverige,13.70273594,56.13579243
+St Skärsjön,SE628606-133205,WA43585030,Sjö,Sjöar och Vattendrag,Södra Sverige,13.06532572,56.67150528
+Gyltigesjön,SE629489-133906,WA69838335,Sjö,Sjöar och Vattendrag,Södra Sverige,13.17402279,56.75318257
+Rammsjön,SE629570-135470,WA87259643,Sjö,Sjöar och Vattendrag,Södra Sverige,13.42760918,56.76689975
+Limmingsjön,SE660804-142742,WA91198389,Sjö,Sjöar och Vattendrag,Södra Sverige,14.52040379,59.58616012
+Skifsen,SE666268-142230,WA70203019,Sjö,Sjöar och Vattendrag,Södra Sverige,14.4094159,60.07553316
+Västra Solsjön,SE655863-129783,WA27767103,Sjö,Sjöar och Vattendrag,Södra Sverige,12.27628031,59.10093636
+Bysjön,SE658086-130264,WA10190925,Sjö,Sjöar och Vattendrag,Södra Sverige,12.33991322,59.30237927
+Överudssjön,SE659105-133982,WA62848185,Sjö,Sjöar och Vattendrag,Södra Sverige,12.98413021,59.40945854
+Ulvsjön,SE661521-130182,WA34719703,Sjö,Sjöar och Vattendrag,Södra Sverige,12.29372887,59.60976084
+Örvattnet,SE662682-132860,WA10620324,Sjö,Sjöar och Vattendrag,Södra Sverige,12.75795701,59.72567869
+Översjön,SE664410-136192,WA79403718,Sjö,Sjöar och Vattendrag,Södra Sverige,13.33818071,59.89303933
+Forsviksån Forsvik,SE649556-142025,,Sjö,Sjöar och Vattendrag,Södra Sverige,14.43392486,58.57919996
+Humsjön,SE650061-142276,WA96665485,Sjö,Sjöar och Vattendrag,Södra Sverige,14.47582425,58.62121289
+Ymsen,SE650398-139136,WA42884377,Sjö,Sjöar och Vattendrag,Södra Sverige,13.93407294,58.64472043
+Svartsjön,SE651609-140839,WA35901648,Sjö,Sjöar och Vattendrag,Södra Sverige,14.22231736,58.75732859
+Fagertärn,SE651558-143620,WA58439062,Sjö,Sjöar och Vattendrag,Södra Sverige,14.70284437,58.75775927
+Långsjön,NW652500-143567,WA65391136,Sjö,Sjöar och Vattendrag,Södra Sverige,14.72083,58.83458
+Långsjön,SE652412-143738,WA54481820,Sjö,Sjöar och Vattendrag,Södra Sverige,14.72082636,58.83458683
+Härsvatten,SE643914-127698,WA48062167,Sjö,Sjöar och Vattendrag,Södra Sverige,12.03038948,58.02019997
+Fräcksjön,SE645289-128665,WA31917172,Sjö,Sjöar och Vattendrag,Södra Sverige,12.18119438,58.14815158
+Granvattnet,SE646293-126302,WA96345108,Sjö,Sjöar och Vattendrag,Södra Sverige,11.77068723,58.22604562
+Alsjön,SE647050-130644,WA93761109,Sjö,Sjöar och Vattendrag,Södra Sverige,12.50201227,58.31509784
+Rotehogstjärnen,SE652902-125783,WA20544146,Sjö,Sjöar och Vattendrag,Södra Sverige,11.61246118,58.81500236
+Ejgdesjön,SE653737-125017,WA61711068,Sjö,Sjöar och Vattendrag,Södra Sverige,11.47092485,58.88538189
+Stora Tresticklan,SE655209-126937,WA58534225,Sjö,Sjöar och Vattendrag,Södra Sverige,11.7877033,59.02792091
+Allgjuttern,SE642489-151724,WA34425522,Sjö,Sjöar och Vattendrag,Södra Sverige,16.09632177,57.94794512
+Öjsjön,SE644987-152393,WA72743278,Sjö,Sjöar och Vattendrag,Södra Sverige,16.2118242,58.17190805
+Mjölnaån Utl. Vättern,SE647917-144480,WA35822974,Sjö,Sjöar och Vattendrag,Södra Sverige,14.86028295,58.43140567
+Motalaström Motala,SE649035-145565,WA57602430,Sjö,Sjöar och Vattendrag,Södra Sverige,15.04346738,58.53344894
+Geten,SE649314-149514,WA74940653,Sjö,Sjöar och Vattendrag,Södra Sverige,15.72167634,58.56099633
+Grissjön,SE651578-146163,WA87125050,Sjö,Sjöar och Vattendrag,Södra Sverige,15.1421328,58.76256766
+Stora Gryten,SE652840-151589,WA30575590,Sjö,Sjöar och Vattendrag,Södra Sverige,16.08065175,58.87727801
+Bolmen,SE629511-136866,WA29456646,Sjö,Sjöar och Vattendrag,Södra Sverige,13.70307857,56.92638332
