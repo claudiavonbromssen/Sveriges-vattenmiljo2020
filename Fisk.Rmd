@@ -1,0 +1,245 @@
+---
+title: "Fiske - sjöar"
+date: "2019-04-16"
+output:
+  html_document:
+    df_print: paged
+  html_notebook: default
+  word_document: default
+  
+---
+
+# Dataåtkomst
+
+Leverans av filer från SLU Aqua
+
+# Val av variabler
+Följande variabler används:
+
+•	NpueBtotal – Insjöfisk totalmängd  (enhet: antal fiskar/nätansträngning)
+•	NpueBAbb – Insjöfisk abborre (enhet: antal fiskar/nätansträngning)	
+•	NpueBGäd – Insjöfisk gädda (enhet: antal fiskar/nätansträngning)	
+•	NpueBMör – Insjöfisk mört (enhet: antal fiskar/nätansträngning)	
+•	NpueBRöd – Insjöfisk röding (enhet: antal fiskar/nätansträngning)	
+•	Narter – Insjöfisk antal arter
+
+
+# Datarensning och databearbetning
+Ingen datarensning eller databearbetning behövs göras i skriptet i det här läget. Tidigare datarensning:
+-	Om en fiskart saknas helt i en sjö är kodningen saknade värden för alla år
+-	Om en fiskart finns men inte observeras är kodningen 0 för respektive år
+
+Alla tillgängliga år presenteras för de olika serierna.
+Serier med mindre än 10 år av data tas bort. Enstaka mätpunkter med mer än 3 år till närmaste mätpunkt tas bort.
+
+# Trendanalys
+
+```{r include=FALSE}
+
+
+#Initial inladdning av paket och egenskrivna funktioner
+source("shared_functions.R")
+```
+
+```{r include=FALSE}
+# Importera data (.txt-filer)
+#joined_dataset <- indexberakningar %>% # join the files
+#  full_join(vattenkemi) %>% 
+#  full_join(vaxtplankton) %>% 
+#  mutate(#`Kfyll (µg/l)` = coalesce(`Kfyll (mg/m3)`, `Kfyll (µg/l)`), # same unit, different names
+#         `Min provdjup (m)` = coalesce(`Min provdjup (m)`, `Min Provdjup (m)`), # merge duplicate column
+#         `Max provdjup (m)` = coalesce(`Max provdjup (m)`, `Max Provdjup (m)`)) %>% 
+#  select(#-`Kfyll (mg/m3)`, 
+#         -`Min Provdjup (m)`,-`Max Provdjup (m)`)
+#
+
+
+```
+
+
+```{r include=FALSE}
+fisk_sjo_trends <- 
+  fisk_sjo %>% 
+  select(Stationsnamn, `Stationskoordinat N/X`, `Stationskoordinat E/Y`, 
+         Provtagningsår, 
+         `Insjöfisk totalmängd`,
+         `Insjöfisk abborre`,
+         `Insjöfisk gädda`,
+         `Insjöfisk mört`, 
+        `Insjöfisk röding`,
+        `Insjöfisk antal arter`)%>% 
+  gather(variable, value, `Insjöfisk totalmängd`:`Insjöfisk antal arter`, na.rm = T)%>% 
+  na.omit() %>% # remove rows with NAs
+  group_by(Stationsnamn, `Stationskoordinat N/X`, `Stationskoordinat E/Y`,  Provtagningsår, variable)%>% 
+  summarise(value = value %>% mean(), # calculate yearly mean
+            n = n()) %>% 
+  ungroup() %>% 
+  group_by(Stationsnamn, `Stationskoordinat N/X`, `Stationskoordinat E/Y`, variable) %>% 
+  periods(variable =Provtagningsår, filter_less_than = 10) %>%
+  mutate(n_years=n(), max_year = max(Provtagningsår)) %>%
+  filter(max_year >= 2015) %>% 
+  ungroup %>% 
+  nest(-Stationsnamn, -`Stationskoordinat N/X`, -`Stationskoordinat E/Y`, -variable) %>% 
+  mutate(fit = future_map(data, ~if(var(.x$value)==0){glm(formula=value~Provtagningsår, data=.x)}else{
+                            
+                            gam(formula = value ~ s(Provtagningsår, k=unique(.x$n_years-2)),
+                              data=.x, 
+                              method="REML", select=T,
+                              #family="Gamma(link='log')"
+                              )}, .progress=T),
+  trend = map2(fit, data, ~ predict(object = .x, newdata = .y, type="response")),
+  resid = map(fit, ~resid(.x, type="pearson")))%>% 
+  unnest(data, trend, resid)%>% 
+  gather(type, value, c(5, 8)) %>% 
+  group_by(Stationsnamn, `Stationskoordinat N/X`, `Stationskoordinat E/Y`, variable) 
+#%>% 
+#  mutate(outlier = ifelse(type=="value", abs(resid)>2, NA) %>% ifelse(.==F, NA, .)) # set outlier to TRUE where pearson residual > 2, otherwise NA
+```
+
+```{r include=FALSE}
+fisk_mannkendall <- fisk_sjo_trends %>% 
+  filter(type=="value") %>% 
+  nest(-Stationsnamn, -`Stationskoordinat N/X`, -`Stationskoordinat E/Y`,-variable) %>% 
+  mutate(fit = map(data, possibly(~rkt(date=as.data.frame(.x)$Provtagningsår, 
+                                       y=as.data.frame(.x)$value), otherwise=NA_real_)),
+         tidy = map(fit, possibly(~rkt_out(.x), otherwise=NA_real_))) %>% 
+  unnest(tidy) %>% 
+  select(-data, -fit) %>% 
+  mutate(sig.stars=cut(p.value, breaks=c(1, 0.05,0.01,0.001,0.0001,0), 
+                       labels=c("ns","*","**","***","****") %>% rev, ordered_result = T),
+         p.value = p.value %>% round(4),
+         slope = slope %>% round(4), 
+         tau = tau %>% round(4)) %>% 
+  replace_na(list(sig.stars="****"))
+```
+
+För samtliga variabler ser processen ut som följer:
+
+ * Sommarvärden för varje station finns redan i levererat fil
+ * Beräkning av antal inom varje år för varje station (enbart som kontroll, bör vara 1)
+ * Beräkning av antal år per station
+ * Bortfiltrering av enstaka mätpunkter som befinner sig mer än 3 år ifrån någon annan mätpunkt i tid
+ * Bortfiltrering av stationer med färre än 10 årsmedelvärden
+ * (Varje delperiod ska ha >=10 års värden)
+ * En robust additiv modell anpassas för varje stations återstående årsmedelvärden för att skatta trend över tid
+ * Årsmedelvärden och trenden plottas ihop med outlierbedömning (standardiserad residual större än 2)
+ 
+Bedöming här är att trendanalyser är meningsfulla för totalmängd fisk, men inte för de andra variablerna.
+ 
+
+## Insjöfisk totalmängd
+
+
+```{r echo=FALSE, fig.height=20, fig.width=20, message=FALSE, warning=FALSE, out.extra='angle=90'}
+fisk_sjo_trends %>% 
+  filter(variable=="Insjöfisk totalmängd") %>% 
+  ggplot(aes(x = Provtagningsår, y = value, group = type, linetype = type, color = type)) +
+  geom_line() +
+  facet_wrap(~Stationsnamn+paste(`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y")+
+   scale_linetype_manual(values = c("value" = "dashed", "trend" = "solid"), 
+                        labels = c("Medelvärden", "Trendvärden"))+
+  scale_color_manual(values = c("value" = "blue", "trend" = "red"), 
+                        labels = c("Medelvärden", "Trendvärden"))+
+  geom_point(data = trends %>% 
+  filter(variable=="Insjöfisk totalmängd",outlier==T), aes(group=NULL, color=NULL), color="red")+
+  labs(y="Mätvärden", color="Tidsserie",linetype = "Tidsserie", x="Provtagningsår")
+```
+
+
+
+## `Insjöfisk abborre`
+
+```{r echo=FALSE, fig.height=20, fig.width=20, message=FALSE, warning=FALSE, out.extra='angle=90'}
+fisk_sjo_trends %>% 
+  filter(variable=="Insjöfisk abborre") %>% 
+  ggplot(aes(x = Provtagningsår, y = value, group = type, linetype = type, color = type)) +
+  geom_line() +
+  facet_wrap(~Stationsnamn+paste(`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y")+
+   scale_linetype_manual(values = c("value" = "dashed", "trend" = "solid"), 
+                        labels = c("Medelvärden", "Trendvärden"))+
+  scale_color_manual(values = c("value" = "blue", "trend" = "red"), 
+                        labels = c("Medelvärden", "Trendvärden"))+
+  geom_point(data = trends %>% 
+  filter(variable=="Insjöfisk abborre",outlier==T), aes(group=NULL, color=NULL), color="red")+
+  labs(y="Mätvärden", color="Tidsserie",linetype = "Tidsserie", x="Provtagningsår")
+```
+
+
+## Insjöfisk gädda
+
+```{r echo=FALSE, fig.height=20, fig.width=20, message=FALSE, warning=FALSE, out.extra='angle=90'}
+fisk_sjo_trends %>% 
+  filter(variable=="Insjöfisk gädda") %>% 
+  ggplot(aes(x = Provtagningsår, y = value, group = type, linetype = type, color = type)) +
+  geom_line() +
+  facet_wrap(~Stationsnamn+paste(`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y")+
+   scale_linetype_manual(values = c("value" = "dashed", "trend" = "solid"), 
+                        labels = c("Medelvärden", "Trendvärden"))+
+  scale_color_manual(values = c("value" = "blue", "trend" = "red"), 
+                        labels = c("Medelvärden", "Trendvärden"))+
+  geom_point(data = trends %>% 
+  filter(variable=="Insjöfisk gädda",outlier==T), aes(group=NULL, color=NULL), color="red")+
+  labs(y="Mätvärden", color="Tidsserie",linetype = "Tidsserie", x="Provtagningsår")
+```
+
+
+## Insjöfisk mört
+
+```{r echo=FALSE, fig.height=20, fig.width=20, message=FALSE, warning=FALSE, out.extra='angle=90'}
+fisk_sjo_trends %>% 
+  filter(variable=="Insjöfisk mört") %>% 
+  ggplot(aes(x = Provtagningsår, y = value, group = type, linetype = type, color = type)) +
+  geom_line() +
+  facet_wrap(~Stationsnamn+paste(`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y")+
+   scale_linetype_manual(values = c("value" = "dashed", "trend" = "solid"), 
+                        labels = c("Medelvärden", "Trendvärden"))+
+  scale_color_manual(values = c("value" = "blue", "trend" = "red"), 
+                        labels = c("Medelvärden", "Trendvärden"))+
+  geom_point(data = trends %>% 
+  filter(variable=="Insjöfisk mört",outlier==T), aes(group=NULL, color=NULL), color="red")+
+  labs(y="Mätvärden", color="Tidsserie",linetype = "Tidsserie", x="Provtagningsår")
+```
+## Insjöfisk röding
+
+```{r echo=FALSE, fig.height=20, fig.width=20, message=FALSE, warning=FALSE, out.extra='angle=90'}
+fisk_sjo_trends %>% 
+  filter(variable=="Insjöfisk röding") %>% 
+  ggplot(aes(x = Provtagningsår, y = value, group = type, linetype = type, color = type)) +
+  geom_line() +
+  facet_wrap(~Stationsnamn+paste(`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y")+
+   scale_linetype_manual(values = c("value" = "dashed", "trend" = "solid"), 
+                        labels = c("Medelvärden", "Trendvärden"))+
+  scale_color_manual(values = c("value" = "blue", "trend" = "red"), 
+                        labels = c("Medelvärden", "Trendvärden"))+
+  geom_point(data = trends %>% 
+  filter(variable=="Insjöfisk röding",outlier==T), aes(group=NULL, color=NULL), color="red")+
+  labs(y="Mätvärden", color="Tidsserie",linetype = "Tidsserie", x="Provtagningsår")
+```
+## Insjöfisk antal arter
+
+```{r echo=FALSE, fig.height=20, fig.width=20, message=FALSE, warning=FALSE, out.extra='angle=90'}
+fisk_sjo_trends %>% 
+  filter(variable=="Insjöfisk antal arter") %>% 
+  ggplot(aes(x = Provtagningsår, y = value, group = type, linetype = type, color = type)) +
+  geom_line() +
+  facet_wrap(~Stationsnamn+paste(`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y")+
+   scale_linetype_manual(values = c("value" = "dashed", "trend" = "solid"), 
+                        labels = c("Medelvärden", "Trendvärden"))+
+  scale_color_manual(values = c("value" = "blue", "trend" = "red"), 
+                        labels = c("Medelvärden", "Trendvärden"))+
+  geom_point(data = trends %>% 
+  filter(variable=="Insjöfisk antal arter",outlier==T), aes(group=NULL, color=NULL), color="red")+
+  labs(y="Mätvärden", color="Tidsserie",linetype = "Tidsserie", x="Provtagningsår")
+```
+
+# Mann-Kendall-tester
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+fisk_mannkendall %>% 
+  select(Stationsnamn, `Stationskoordinat N/X`, `Stationskoordinat E/Y`, variable, p.value, statistic, slope, tau, sig.stars) %>% datatable()
+
+```
+
+
+
+
