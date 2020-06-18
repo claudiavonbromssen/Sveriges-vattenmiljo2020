@@ -41,15 +41,7 @@ source("shared_functions.R")
 
 ```{r include=FALSE}
 # Importera data (.txt-filer)
-#joined_dataset <- indexberakningar %>% # join the files
-#  full_join(vattenkemi) %>% 
-#  full_join(vaxtplankton) %>% 
-#  mutate(#`Kfyll (µg/l)` = coalesce(`Kfyll (mg/m3)`, `Kfyll (µg/l)`), # same unit, different names
-#         `Min provdjup (m)` = coalesce(`Min provdjup (m)`, `Min Provdjup (m)`), # merge duplicate column
-#         `Max provdjup (m)` = coalesce(`Max provdjup (m)`, `Max Provdjup (m)`)) %>% 
-#  select(#-`Kfyll (mg/m3)`, 
-#         -`Min Provdjup (m)`,-`Max Provdjup (m)`)
-#
+source("joined_dataset.R", encoding = "UTF-8")
 ```
 
 
@@ -78,26 +70,23 @@ trends <-
   mutate(n_years=n(), max_year = max(Provtagningsår)) %>%
   filter(max_year >= 2015) %>% 
   ungroup %>% 
-  nest(-Stationsnamn, -`Stationskoordinat N/X`, -`Stationskoordinat E/Y`, -variable) %>% 
+  nest(data=c(-Stationsnamn, -`Stationskoordinat N/X`, -`Stationskoordinat E/Y`, -variable)) %>% 
   mutate(fit = future_map(data, ~if(var(.x$value)==0){glm(formula=value~Provtagningsår, data=.x)}else{
-                            
                             gam(formula = value ~ s(Provtagningsår, k=unique(.x$n_years-2)),
                               data=.x, 
                               method="REML", select=T,
-                              #family="Gamma(link='log')"
                               )}, .progress=T),
   trend = map2(fit, data, ~ predict(object = .x, newdata = .y, type="response")),
   resid = map(fit, ~resid(.x, type="pearson"))) %>% 
-  unnest(data, trend, resid) %>% 
-  gather(type, value, c(5, 8)) %>% 
-  group_by(Stationsnamn, `Stationskoordinat N/X`, `Stationskoordinat E/Y`, variable) #%>% 
-  #mutate(outlier = ifelse(type=="value", abs(resid)>2, NA) %>% ifelse(.==F, NA, .)) # set outlier to TRUE where pearson residual > 2, otherwise NA
+  unnest(c(data, trend, resid)) %>% 
+  gather(type, value, value, trend) %>% 
+  group_by(Stationsnamn, `Stationskoordinat N/X`, `Stationskoordinat E/Y`, variable)
 ```
 
 ```{r include=FALSE}
 vaxtplankton_mannkendall <- trends %>% 
   filter(type=="value") %>% 
-  nest(-Stationsnamn, -`Stationskoordinat N/X`, -`Stationskoordinat E/Y`,-variable) %>% 
+  nest(data = c(-Stationsnamn, -`Stationskoordinat N/X`, -`Stationskoordinat E/Y`,-variable)) %>% 
   mutate(fit = map(data, possibly(~rkt(date=as.data.frame(.x)$Provtagningsår, 
                                        y=as.data.frame(.x)$value), otherwise=NA_real_)),
          tidy = map(fit, possibly(~rkt_out(.x), otherwise=NA_real_))) %>% 

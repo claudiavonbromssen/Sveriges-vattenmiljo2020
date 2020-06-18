@@ -26,10 +26,10 @@ output: html_notebook
 
 # Kodbok och variabelnamn
 ```{r}
-Import_variabler_sotvatten <- read_excel("Import variabler sotvatten.xlsx", # ö till o
+Import_variabler_sotvatten <- read_excel(here("Annat/Import variabler sotvatten.xlsx"), # ö till o
                                          col_types = c("text", "text", "text",
-                                                       "blank", "text", "blank", "blank",
-                                                       "text", "blank", "text", "blank"))
+                                                       "skip", "text", "skip", "skip",
+                                                       "text", "skip", "text", "skip"))
 
 codebook <- tibble::tribble(
                                          ~`DATA ID`,               ~variable,
@@ -102,13 +102,14 @@ vaxtplankton_mannkendall %>%
 
 ```{r}
 trends  %>%
+  select(-fit) %>% 
   spread(type, value) %>%
   full_join(vaxtplankton_var) %>%
   left_join(joined_dataset %>%
               select(1:5, 
                      `MS_CD C3`) %>% 
               distinct()) %>%
-  ungroup %>%
+  ungroup() %>%
   transmute(VattenID = `EU id`, 
             Vattenkategori = "Station", 
             VariabelID, 
@@ -156,6 +157,7 @@ kemi_sjo_mannkendall %>%
 
 ```{r}
 kemi_sjo_trender %>%
+  select(-fit) %>% 
   full_join(vattenkemi_sjo_var) %>%
   left_join(joined_dataset %>%
               select(1:5, 
@@ -211,6 +213,7 @@ vattendragkemi_mannkendall %>%
 
 ```{r}
 gam_models_vattendrag_kemi %>%
+  select(-fit) %>% 
   full_join(vattendrag_kemi_vars) %>%
   left_join(trendvattendrag_kemi_data %>%
               select(1:5, 
@@ -239,7 +242,7 @@ flodmynningar_vars <- Belastningar_mannkendall_stationer %>%
   left_join(Import_variabler_sotvatten) %>%
   rename(`VariabelID` = `DATA ID`)
 
-stationer_flodmynningar <- read_delim("stationer_flodmynningar.csv",
+stationer_flodmynningar <- read_delim(here("Koordinatfiler/stationer_flodmynningar.csv"),
                                       ",", 
                                       escape_double = FALSE, 
                                       locale = locale(encoding = "WINDOWS-1252"),
@@ -342,6 +345,7 @@ fisk_mannkendall %>%
 
 ```{r}
 fisk_sjo_trends  %>%
+  select(-fit) %>% 
   spread(type, value) %>%
   full_join(fisk_var) %>%
   left_join(fisk_sjo %>%
@@ -406,6 +410,7 @@ fisk_vdr_mannkendall %>%
 ### Trender
 ```{r}
 fisk_vdr_trends %>%
+  select(-fit) %>% 
   spread(type, value) %>%
   full_join(fisk_vdr_var) %>%
   left_join(fisk_vdr %>%
@@ -464,9 +469,8 @@ write_excel_csv(vattendrag_serier, "vattendrag_serier.csv")
 ```{r}
 vattendrag_status <- read_csv("vattendrag_vattenkemi_status.csv") %>% 
   full_join(read_delim("fisk_vdr_status.csv", 
-    "\t", escape_double = FALSE, locale = locale(encoding = "ISO-8859-1"), 
+    ",", escape_double = FALSE, locale = locale(encoding = "ISO-8859-1"), 
     trim_ws = TRUE)) # Något konstigt med teckenkodningen på vattendrag-fisk-status
 
 write_excel_csv(vattendrag_status, "vattendrag_status.csv")
 ```
-

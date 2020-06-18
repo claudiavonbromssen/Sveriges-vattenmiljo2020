@@ -10,40 +10,33 @@ output:
 source("shared_functions.R")
 ```
 
+```{r}
+source("joined_dataset.R", encoding = "UTF-8")
+```
+
+
 ```{r include=FALSE}
 # Importera data (.txt-filer)
-vattenkemi_data <- joined_dataset %>% 
-  select(vattenkemi_sjo[,1:25] %>% colnames(), 
+joined_dataset %>% 
+  select(1:Provkommentar, 
          `NO2+NO3-N (µg/l)`,
          `NH4-N (µg/l)`, #Oorganiskt kväve
-         
          `Kjeld.-N (µg/l)`, 
          `Tot-N_TNb (µg/l)`,
          `Tot-N_ps (µg/l)`, # Totalt kväve
          `Tot-N (µg/l)`,
-         
          `Tot-P (µg/l)`, #Totalt fosfor
-         
          `PO4-P (µg/l)`, #Fosfatfosfor
-         
          `TOC (mg/l)`, # Totalt organiskt kol
-         
          `Alk/Acid (mekv/l)`,
          `Alk. (mekv/l)`, #Alkalinitet
-         
          `Siktdjup med kikare (m)`, 
          `Siktdjup utan kikare (m)`,
          `Siktdjup (m)`, # Siktdjup
-         
-         #`Vattentemperatur (°C)`,
-         
          `Si (µg/l)`, # Kisel
          `Si (mg/l)`, 
-         
          `SO4_IC (mekv/l)`, #Sulfat
-         
          pH,
-         
          `Abs_F 420 (/5cm)`) %>% # Brunhet
   as_tibble() %>% 
   mutate(`Oorganiskt N (µg/l)` = `NO2+NO3-N (µg/l)`+`NH4-N (µg/l)`,
@@ -57,10 +50,10 @@ vattenkemi_data <- joined_dataset %>%
          coalesce(`Siktdjup utan kikare (m)`) %>% 
          coalesce(`Siktdjup (m)`),
     `Si (µg/l)` = `Si (µg/l)` %>% coalesce(`Si (mg/l)`/1000)) %>% 
-   group_by(Stationsnamn, `Stationskoordinat N/X`, `Stationskoordinat E/Y`) %>%
-     # mutate(`Temperatur ytvatten`=`Vattentemperatur (°C)` - mean(`Vattentemperatur (°C)`, na.rm=TRUE))%>%
-  ungroup() %>%
-  select(1:25, 
+  group_by(Stationsnamn, `Stationskoordinat N/X`, `Stationskoordinat E/Y`, Provdatum) %>% 
+  filter(`Max provdjup (m)` <= 2, `Max provdjup (m)` == min(`Max provdjup (m)`)) %>%
+  ungroup() %>% # Ytligaste provet som inte är djupare än 2 meter
+    select(1:25, 
          `Oorganiskt N (µg/l)`,
          `Tot-N (µg/l)`,
          `Tot-P (µg/l)`, 
@@ -68,14 +61,10 @@ vattenkemi_data <- joined_dataset %>%
          `TOC (mg/l)`,
          `Alkalinitet (mekv/l)`,
          `Siktdjup (m)`,
-         #`Temperatur ytvatten`,
          `Si (µg/l)`,
          `SO4_IC (mekv/l)`,
          pH,
          `Abs_F 420 (/5cm)`) %>% 
-  group_by(Stationsnamn, `Stationskoordinat N/X`, `Stationskoordinat E/Y`, Provdatum) %>% 
-  filter(`Max provdjup (m)` <= 2, `Max provdjup (m)` == min(`Max provdjup (m)`)) %>%
-  ungroup() %>% # Ytligaste provet som inte är djupare än 2 meter
   mutate(year = ifelse(Provtagningsmånad == 12, yes = Provtagningsår+1, no=Provtagningsår),
         season = Provtagningsmånad %>% 
           factor() %>% 
@@ -85,18 +74,16 @@ vattenkemi_data <- joined_dataset %>%
                        "4" = c("9","10","11")) %>% as.character() %>% 
            parse_number()
          ) %>% 
-  gather(variable, value, 26:(ncol(.)-2)) %>% # 2 if season
-  filter(is.na(value)==FALSE) %>% 
+  gather(variable, value, 26:(ncol(.)-2), na.rm = T) %>% # 2 due to season and year
   group_by(Stationsnamn, `Stationskoordinat N/X`, `Stationskoordinat E/Y`, variable) %>% 
   periods(year, filter_less_than = 10) %>% 
-    mutate(n_years = n_distinct(year, na.rm = TRUE)) %>% 
-  ungroup()
+  mutate(n_years = n_distinct(year, na.rm = TRUE)) %>% 
+  ungroup() -> 
+  vattenkemi_data
 ```
 
 ```{r warning=FALSE, include=FALSE}
-
-kemi_sjo_trender <- vattenkemi_data %>% 
-  #  filter(n_years >= 10) %>% 
+vattenkemi_data %>% 
   group_by(Stationsnamn, `Stationskoordinat N/X`, `Stationskoordinat E/Y`, variable, year, 
            season, 
            n_years) %>% 
@@ -109,69 +96,33 @@ kemi_sjo_trender <- vattenkemi_data %>%
             n = sum(n)) %>% 
   ungroup() %>% 
   ####### Ta säsongsmedelvärden, sen årsmedelvärden på det
- # mutate(year_dec = year+(season-1)/4) %>% 
- # nest(-Stationsnamn, -`Stationskoordinat N/X`, -`Stationskoordinat E/Y`, -variable) %>% 
- # mutate(min = map(data, ~min(.x$year_dec)), 
- #        max = map(data, ~max(.x$year_dec))) %>% 
- # unnest(min, max) %>% 
- # mutate(dategrid = map2(min, max, ~seq(.x, .y, 1/4) %>% 
- #                          as_tibble %>% 
- #                          rename(year_dec = value) %>% 
- #                          mutate(year = floor(year_dec),
- #                                 season = ((year_dec-floor(year_dec))*4)+1)),
- #        data = map2(data, dategrid, ~suppressMessages(full_join(.x,.y)))) %>% 
- # select(-min, -max) %>% 
- # unnest(data) %>% 
-  arrange(Stationsnamn, `Stationskoordinat N/X`, `Stationskoordinat E/Y`, variable, year#, season
-          ) %>% 
-#  nest(-Stationsnamn, -`Stationskoordinat N/X`, -`Stationskoordinat E/Y`, -variable) %>% 
-#  mutate(ts = map(data, ~ts(data = .x$value, start = c(.x$year, .x$season), frequency = 4)),
-#         ts.interp = future_map(ts, ~forecast::na.interp(.x, lambda = "auto"), .progress = T),
-#         missing = ifelse(is.na(ts)==T, T, F)) %>% 
-#  unnest(data, 
-#         ts.interp, ts) %>% 
-#    group_by(Stationsnamn, `Stationskoordinat N/X`, `Stationskoordinat E/Y`, variable) %>% 
-#   mutate(time=year+(season-1)/4) %>% 
-#    ungroup() %>% 
-#  filter(Stationsnamn == "Spjutsjön") %>% 
-    nest(-Stationsnamn, -`Stationskoordinat N/X`, -`Stationskoordinat E/Y`, -variable) %>% 
+  arrange(Stationsnamn, `Stationskoordinat N/X`, `Stationskoordinat E/Y`, variable, year) %>% 
+    nest(data = c(-Stationsnamn, -`Stationskoordinat N/X`, -`Stationskoordinat E/Y`, -variable)) %>% 
     mutate(fit = future_map(data, 
                             possibly(~ gam(formula = value ~ s(year, k=n_distinct(.x %>% filter(!is.na(value)) %>% .$year)-2),
                                 data = .x, 
-                                method="REML", select=T#,
-                                #correlation = corCAR1(form=~Provtagningsår),
-                                #control=list(optimMethod = "optim"), 
-                                #family=Gamma(link='log')
-                                ), otherwise = NA_real_), .progress = T)) %>% 
-  mutate(trend = future_map2(fit, data, possibly(~ predict.gam(object = .x, newdata = .y, type="response"), otherwise = NA_real_), .progress = TRUE)) %>% 
-# rowwise %>% mutate(length = length(trend)) %>% arrange(length)#%>% filter(length >1) %>% 
-  unnest(data, trend)
-
+                                method="REML", select=T), otherwise = NA_real_), .progress = T)) %>% 
+  mutate(trend = map2(fit, data, possibly(~ predict.gam(object = .x, newdata = .y, type="response"), otherwise = NA_real_), .progress = TRUE)) %>% 
+  unnest(c(data, trend)) -> 
+  kemi_sjo_trender
 ```
 
 ```{r message=FALSE, warning=FALSE, include=FALSE}
-kemi_sjo_mannkendall <- 
-  kemi_sjo_trender %>% 
+kemi_sjo_trender %>% 
   filter(n_years >= 10, !is.na(value)) %>% 
- # group_by(Stationsnamn, `Stationskoordinat N/X`, `Stationskoordinat E/Y`, variable, Provtagningsår) %>% 
-  #summarise(value = mean(value)) %>% 
-  nest(-Stationsnamn, -variable, -`Stationskoordinat N/X`, -`Stationskoordinat E/Y`) %>% 
-  mutate(fit = future_map(data, possibly(~rkt(date = as.data.frame(.x)$year, 
-                                         #     block = as.data.frame(.x)$season,
-                                       y=as.data.frame(.x)$value, correct = TRUE), otherwise=NA_real_), .progress = T),
+  nest(data = c(-Stationsnamn, -variable, -`Stationskoordinat N/X`, -`Stationskoordinat E/Y`)) %>% 
+  mutate(fit = map(data, possibly(~rkt(date = as.data.frame(.x)$year, 
+                                       y=as.data.frame(.x)$value, correct = TRUE), otherwise=NA_real_)),
          tidy = map(fit, possibly(~rkt_out(.x), otherwise=NA_real_))) %>% 
   unnest(tidy) %>% 
   select(-data, -fit)  %>% 
-  group_by(Stationsnamn, `Stationskoordinat N/X`, `Stationskoordinat E/Y`) %>% 
- # mutate(p.value = p.value %>% p.adjust("fdr")) %>% 
-  ungroup() %>% 
   mutate(sig.stars=cut(p.value, breaks=c(1, 0.05,0.01,0.001,0.0001,0), 
                    labels=c("ns","*","**","***","****") %>% rev, ordered_result = T),
          p.value = p.value %>% round(4),
          slope = slope %>% signif(4), 
          tau = tau %>% round(4)) %>% 
-         replace_na(list(sig.stars="****"))
-
+         replace_na(list(sig.stars="****")) ->
+  kemi_sjo_mannkendall
 ```
 
 
@@ -184,7 +135,6 @@ kemi_sjo_trender %>%
   ggplot(aes(x=year, y=value))+
   geom_line(linetype="dashed")+
   facet_wrap(~paste(Stationsnamn, "\r\n",`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y", ncol = 8)+
-  #geom_point(aes(color=factor(season, ordered = T)))+
   geom_line(aes(y=trend), linetype="solid")+
   labs(title="NH4-N (µg/l)")
 ```
@@ -195,7 +145,6 @@ kemi_sjo_trender %>%
   ggplot(aes(x=year, y=value))+
   geom_line(linetype="dashed")+
   facet_wrap(~paste(Stationsnamn, "\r\n",`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y", ncol = 8)+
-  #geom_point(aes(color=factor(season, ordered = T)))+
   geom_line(aes(y=trend), linetype="solid")+
   labs(title="Tot-N_ps (µg/l)")
 ```
@@ -206,7 +155,6 @@ kemi_sjo_trender %>%
   ggplot(aes(x=year, y=value))+
   geom_line(linetype="dashed")+
   facet_wrap(~paste(Stationsnamn, "\r\n",`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y", ncol = 8)+
-  #geom_point(aes(color=factor(season, ordered = T)))+
   geom_line(aes(y=trend), linetype="solid")+
   labs(title="Tot-P (µg/l)")
 ```
@@ -219,7 +167,6 @@ kemi_sjo_trender %>%
   ggplot(aes(x=year, y=value))+
   geom_line(linetype="dashed")+
   facet_wrap(~paste(Stationsnamn, "\r\n",`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y", ncol = 8)+
-  #geom_point(aes(color=factor(season, ordered = T)))+
   geom_line(aes(y=trend), linetype="solid")+
   labs(title="PO4-P (µg/l)")
 ```
@@ -231,7 +178,6 @@ kemi_sjo_trender %>%
   ggplot(aes(x=year, y=value))+
   geom_line(linetype="dashed")+
   facet_wrap(~paste(Stationsnamn, "\r\n",`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y", ncol = 8)+
-  #geom_point(aes(color=factor(season, ordered = T)))+
   geom_line(aes(y=trend), linetype="solid")+
   labs(title="TOC (mg/l)")
 ```
@@ -242,7 +188,6 @@ kemi_sjo_trender %>%
   ggplot(aes(x=year, y=value))+
   geom_line(linetype="dashed")+
   facet_wrap(~paste(Stationsnamn, "\r\n",`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y", ncol = 8)+
-  #geom_point(aes(color=factor(season, ordered = T)))+
   geom_line(aes(y=trend), linetype="solid")+
   labs(title="Alkalinitet (mekv/l)")
 ```
@@ -253,7 +198,6 @@ kemi_sjo_trender %>%
   ggplot(aes(x=year, y=value))+
   geom_line(linetype="dashed")+
   facet_wrap(~paste(Stationsnamn, "\r\n",`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y", ncol = 8)+
-  #geom_point(aes(color=factor(season, ordered = T)))+
   geom_line(aes(y=trend), linetype="solid")+
   labs(title="Siktdjup (m)")
 ```
@@ -264,7 +208,6 @@ kemi_sjo_trender %>%
   ggplot(aes(x=Provtagningsår, y=value))+
   geom_line(linetype="dashed")+
   facet_wrap(~paste(Stationsnamn, "\r\n",`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y", ncol = 8)+
-  #geom_point(aes(color=factor(season, ordered = T)))+
   geom_line(aes(y=trend), linetype="solid")+
   labs(title="Vattentemperatur ytvatten")
 ```
@@ -275,7 +218,6 @@ kemi_sjo_trender %>%
   ggplot(aes(x=year, y=value))+
   geom_line(linetype="dashed")+
   facet_wrap(~paste(Stationsnamn, "\r\n",`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y", ncol = 8)+
-  #geom_point(aes(color=factor(season, ordered = T)))+
   geom_line(aes(y=trend), linetype="solid")+
   labs(title="Si (µg/l)")
 ```
@@ -286,7 +228,6 @@ kemi_sjo_trender %>%
   ggplot(aes(x=year, y=value))+
   geom_line(linetype="dashed")+
   facet_wrap(~paste(Stationsnamn, "\r\n",`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y", ncol = 8)+
-  #geom_point(aes(color=factor(season, ordered = T)))+
   geom_line(aes(y=trend), linetype="solid")+
   labs(title="SO4_IC (mekv/l)")
 ```
@@ -297,7 +238,6 @@ kemi_sjo_trender %>%
   ggplot(aes(x=year, y=value))+
   geom_line(linetype="dashed")+
   facet_wrap(~paste(Stationsnamn, "\r\n",`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y", ncol = 8)+
-  #geom_point(aes(color=factor(season, ordered = T)))+
   geom_line(aes(y=trend), linetype="solid")+
   labs(title="pH")
 ```
@@ -308,7 +248,6 @@ kemi_sjo_trender %>%
   ggplot(aes(x=year, y=value))+
   geom_line(linetype="dashed")+
   facet_wrap(~paste(Stationsnamn, "\r\n",`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y", ncol = 8)+
-  #geom_point(aes(color=factor(season, ordered = T)))+
   geom_line(aes(y=trend), linetype="solid")+
   labs(title="Abs_F 420 (/5cm)")
 ```
