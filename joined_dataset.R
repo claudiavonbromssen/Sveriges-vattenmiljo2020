@@ -1,29 +1,64 @@
 if (exists("joined_dataset") == FALSE) {
-  Indexberakningar_data <- import_slu_mvm_data_excel(here("Indata2019/Sjöar/Växtplankton/Trend_stora_vplankton.xlsx"), numeric_var = 31, sheet = 3)
-  IKEU_indexberakningar <- import_slu_mvm_data_excel(here("Indata2019/Sjöar/Växtplankton/IKEU_vplankton.xlsx"), numeric_var = 31, sheet = 3)
+  tibble(dir="Indata2019/Sjöar/Växtplankton/") %>%
+    mutate(files = map(dir, ~list.files(here(.x)))) %>%
+    unnest(files) %>%
+    transmute(path = paste0(dir, files)) %>%
+    mutate(data = map(path, ~import_slu_mvm_data_excel(here(.x), numeric_var = 31, sheet = 3))) %>%
+    mutate(path = str_extract(basename(path), "^[^_]+(?=_)"),
+           Regionala = if_else(path %in% c("RMÖ","SRK"), 1, 0),
+           data = map2(data, Regionala, ~.x %>% mutate(Regionala = .y))) %>%
+    pull(data) %>%
+    reduce(full_join) %>%
+    select(1:30, Regionala, everything()) ->
+    indexberakningar
+  #Indexberakningar_data <- import_slu_mvm_data_excel(here("Indata2019/Sjöar/Växtplankton/Trend_stora_vplankton.xlsx"), numeric_var = 31, sheet = 3)
+  #IKEU_indexberakningar <- import_slu_mvm_data_excel(here("Indata2019/Sjöar/Växtplankton/IKEU_vplankton.xlsx"), numeric_var = 31, sheet = 3)
 
-  indexberakningar <- full_join(Indexberakningar_data, IKEU_indexberakningar)
+  #indexberakningar <- full_join(Indexberakningar_data, IKEU_indexberakningar)
 
-  Vaxtplankton_data <- import_slu_mvm_data_excel("Indata2019/Sjöar/Växtplankton/Trend_stora_vplankton.xlsx", numeric_var = 29, sheet = 2)
-  IKEU_Vaxtplankton <- import_slu_mvm_data_excel("Indata2019/Sjöar/Växtplankton/IKEU_vplankton.xlsx", numeric_var = 29, sheet = 2)
-
-  vaxtplankton <- full_join(Vaxtplankton_data, IKEU_Vaxtplankton) %>%
-    mutate_at(29:42, Vectorize(function(x) {
+  tibble(dir="Indata2019/Sjöar/Växtplankton/") %>%
+    mutate(files = map(dir, ~list.files(here(.x)))) %>%
+    unnest(files) %>%
+    transmute(path = paste0(dir, files)) %>%
+    mutate(data = map(path, ~import_slu_mvm_data_excel(here(.x), numeric_var = 29, sheet = 2))) %>%
+    mutate(path = str_extract(basename(path), "^[^_]+(?=_)"),
+           Regionala = if_else(path %in% c("RMÖ","SRK"), 1, 0),
+           data = map2(data, Regionala, ~.x %>% mutate(Regionala = .y))) %>%
+    pull(data) %>%
+    reduce(full_join) %>%
+    select(1:28, Regionala, everything()) %>%
+    mutate_at(30:42, Vectorize(function(x) {
       if (is.na(x)) {
         0
       } else {
         x
       }
     })) %>%
-    mutate(Biovolym2 = rowSums(.[, 29:42]) %>% round(3))
+    mutate(Biovolym2 = rowSums(.[, 30:(ncol(.))]) %>% round(3)) ->
+    vaxtplankton
 
-  Vattenkemi_data <- import_slu_mvm_data_excel(here("Indata2019/Sjöar/Vattenkemi/trend_stora_kemi.xlsx"), 26)
-  IKEU_Vattenkemi <- import_slu_mvm_data_excel(here("Indata2019/Sjöar/Vattenkemi/IKEU_kemi.xlsx"), 26)
+  tibble(dir="Indata2019/Sjöar/Vattenkemi/") %>%
+    mutate(files = map(dir, ~list.files(here(.x)))) %>%
+    unnest(files) %>%
+    transmute(path = paste0(dir, files)) %>%
+    mutate(data = map(path, ~import_slu_mvm_data_excel(here(.x), numeric_var = 26, sheet = 2))) %>%
+    mutate(path = str_extract(basename(path), "^[^_]+(?=_)"),
+           Regionala = if_else(path %in% c("RMÖ","SRK"), 1, 0),
+           data = map2(data, Regionala, ~.x %>% mutate(Regionala = .y,
+                                                       Provkommentar = Provkommentar %>% as.character()))) %>%
+    pull(data) %>%
+    reduce(full_join) %>%
+    select(1:25, Regionala, everything()) ->
+    vattenkemi
+
+
+  #Vattenkemi_data <- import_slu_mvm_data_excel(here("Indata2019/Sjöar/Vattenkemi/trend_stora_kemi.xlsx"), 26)
+  #IKEU_Vattenkemi <- import_slu_mvm_data_excel(here("Indata2019/Sjöar/Vattenkemi/IKEU_kemi.xlsx"), 26)
     #rename(`Kfyll (µg/l)` = `Kfyll (µg/l)...54`) %>%
    # mutate(`Kfyll (µg/l)` = coalesce(`Kfyll (µg/l)`, `Kfyll (µg/l)...55`) %>% coalesce(`Kfyll (mg/m3)`)) %>%
     #select(-`Kfyll (µg/l)...55`, -`Kfyll (mg/m3)`)
 
-  vattenkemi <- full_join(Vattenkemi_data, IKEU_Vattenkemi)
+  #vattenkemi <- full_join(Vattenkemi_data, IKEU_Vattenkemi)
 
   indexberakningar %>% # join the files
     full_join(vattenkemi) %>%
@@ -75,12 +110,12 @@ if (exists("joined_dataset") == FALSE) {
 }
 
 
-if(exists("Indexberakningar_data")==T){rm(Indexberakningar_data)}
-if(exists("IKEU_indexberakningar")==T){rm(IKEU_indexberakningar)}
+#if(exists("Indexberakningar_data")==T){rm(Indexberakningar_data)}
+#if(exists("IKEU_indexberakningar")==T){rm(IKEU_indexberakningar)}
 if(exists("indexberakningar")==T){rm(indexberakningar)}
-if(exists("Vaxtplankton_data")==T){rm(Vaxtplankton_data)}
-if(exists("IKEU_Vaxtplankton")==T){rm(IKEU_Vaxtplankton)}
+#if(exists("Vaxtplankton_data")==T){rm(Vaxtplankton_data)}
+#if(exists("IKEU_Vaxtplankton")==T){rm(IKEU_Vaxtplankton)}
 if(exists("vaxtplankton")==T){rm(vaxtplankton)}
-if(exists("Vattenkemi_data")==T){rm(Vattenkemi_data)}
-if(exists("IKEU_Vattenkemi")==T){rm(IKEU_Vattenkemi)}
+#if(exists("Vattenkemi_data")==T){rm(Vattenkemi_data)}
+#if(exists("IKEU_Vattenkemi")==T){rm(IKEU_Vattenkemi)}
 if(exists("vattenkemi")==T){rm(vattenkemi)}
