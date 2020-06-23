@@ -1,11 +1,11 @@
 if (exists("joined_dataset") == FALSE) {
-  Indexberakningar_data <- import_slu_mvm_data_excel(here("Indata2018/Sjöar/Växtplankton/Trend_stora_vplankton.xlsx"), numeric_var = 31, sheet = 3)
-  IKEU_indexberakningar <- import_slu_mvm_data_excel(here("Indata2018/Sjöar/Växtplankton/IKEU_vplankton.xlsx"), numeric_var = 31, sheet = 3)
+  Indexberakningar_data <- import_slu_mvm_data_excel(here("Indata2019/Sjöar/Växtplankton/Trend_stora_vplankton.xlsx"), numeric_var = 31, sheet = 3)
+  IKEU_indexberakningar <- import_slu_mvm_data_excel(here("Indata2019/Sjöar/Växtplankton/IKEU_vplankton.xlsx"), numeric_var = 31, sheet = 3)
 
   indexberakningar <- full_join(Indexberakningar_data, IKEU_indexberakningar)
 
-  Vaxtplankton_data <- import_slu_mvm_data_excel("Indata2018/Sjöar/Växtplankton/Trend_stora_vplankton.xlsx", numeric_var = 29, sheet = 2)
-  IKEU_Vaxtplankton <- import_slu_mvm_data_excel("Indata2018/Sjöar/Växtplankton/IKEU_vplankton.xlsx", numeric_var = 29, sheet = 2)
+  Vaxtplankton_data <- import_slu_mvm_data_excel("Indata2019/Sjöar/Växtplankton/Trend_stora_vplankton.xlsx", numeric_var = 29, sheet = 2)
+  IKEU_Vaxtplankton <- import_slu_mvm_data_excel("Indata2019/Sjöar/Växtplankton/IKEU_vplankton.xlsx", numeric_var = 29, sheet = 2)
 
   vaxtplankton <- full_join(Vaxtplankton_data, IKEU_Vaxtplankton) %>%
     mutate_at(29:42, Vectorize(function(x) {
@@ -17,11 +17,11 @@ if (exists("joined_dataset") == FALSE) {
     })) %>%
     mutate(Biovolym2 = rowSums(.[, 29:42]) %>% round(3))
 
-  Vattenkemi_data <- import_slu_mvm_data_excel(here("Indata2018/Sjöar/Vattenkemi/trend_stora_kemi.xlsx"), 26)
-  IKEU_Vattenkemi <- import_slu_mvm_data_excel(here("Indata2018/Sjöar/Vattenkemi/IKEU_kemi.xlsx"), 26) %>%
-    rename(`Kfyll (µg/l)` = `Kfyll (µg/l)...54`) %>%
-    mutate(`Kfyll (µg/l)` = coalesce(`Kfyll (µg/l)`, `Kfyll (µg/l)...55`) %>% coalesce(`Kfyll (mg/m3)`)) %>%
-    select(-`Kfyll (µg/l)...55`, -`Kfyll (mg/m3)`)
+  Vattenkemi_data <- import_slu_mvm_data_excel(here("Indata2019/Sjöar/Vattenkemi/trend_stora_kemi.xlsx"), 26)
+  IKEU_Vattenkemi <- import_slu_mvm_data_excel(here("Indata2019/Sjöar/Vattenkemi/IKEU_kemi.xlsx"), 26)
+    #rename(`Kfyll (µg/l)` = `Kfyll (µg/l)...54`) %>%
+   # mutate(`Kfyll (µg/l)` = coalesce(`Kfyll (µg/l)`, `Kfyll (µg/l)...55`) %>% coalesce(`Kfyll (mg/m3)`)) %>%
+    #select(-`Kfyll (µg/l)...55`, -`Kfyll (mg/m3)`)
 
   vattenkemi <- full_join(Vattenkemi_data, IKEU_Vattenkemi)
 
