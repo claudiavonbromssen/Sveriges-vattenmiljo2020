@@ -32,82 +32,102 @@ Serier med mindre än 10 år av data tas bort. Enstaka mätpunkter med mer än 3
 # Trendanalys
 
 ```{r include=FALSE}
-
-
 #Initial inladdning av paket och egenskrivna funktioner
 source("shared_functions.R")
-
 ```
 
 ```{r include=FALSE}
-# Importera data (.txt-filer)
-#joined_dataset <- indexberakningar %>% # join the files
-#  full_join(vattenkemi) %>% 
-#  full_join(vaxtplankton) %>% 
-#  mutate(#`Kfyll (µg/l)` = coalesce(`Kfyll (mg/m3)`, `Kfyll (µg/l)`), # same unit, different names
-#         `Min provdjup (m)` = coalesce(`Min provdjup (m)`, `Min Provdjup (m)`), # merge duplicate column
-#         `Max provdjup (m)` = coalesce(`Max provdjup (m)`, `Max Provdjup (m)`)) %>% 
-#  select(#-`Kfyll (mg/m3)`, 
-#         -`Min Provdjup (m)`,-`Max Provdjup (m)`)
-#
-
-
+read_csv(here("Indata2018/Fiske/FiskVattendrag.csv"), locale = locale(encoding = "ISO-8859-1")) %>%
+  transmute(Stationsnamn = Vdragnamn,
+            Provtagningsår = År,
+            `Vattendrag lax` = Medeltäthet_Lax100m2,
+            `Vattendrag öring` = Medeltäthet_Öring100m2,
+            `Vattendrag totalmängd fisk` = Totaltäthet100m2,
+            `Vattendrag antal arter` = Medelantalfiskarter,
+            EU_CD = case_when(EU_CD == as.character("SE673902-577077") ~ as.character("SE673809-153401"), # Björnbackån
+                      TRUE ~ as.character(EU_CD)),
+            `Stationskoordinat N/X` = Xkoorvdr,
+            `Stationskoordinat E/Y` = Ykoorvdr,
+            MS_CD = MS_CD) %>%
+  mutate(`EU_CD` = case_when(`EU_CD` == "SE666830-151744" ~ "SE666881-151821", # 	Bjurforsbäcken
+                             `EU_CD` == "SE724171-151176" ~ "SE724097-151160", # 	Skansnäsån
+                             `EU_CD` == "SE640224-138043" ~ "SE640085-138148", # 	Helgaboån
+                             `EU_CD` == "SE723329-161534" ~ "SE723232-161455", # 	Mattjockbäcken
+                             `EU_CD` == "SE692738-153336" ~ "SE692688-153260", # 	Viskansbäcken
+                             `EU_CD` == "SE753561-165305" ~ "SE753460-165285", # 	Akkarjåkkå
+                             `EU_CD` == "SE639661-133346" ~ "SE639719-133565", # 	Lindåsabäcken
+                             `EU_CD` == "SE699392-139462" ~ "SE699780-139553", # 	Lekarån
+                             `EU_CD` == "SE737666-158035" ~ "SE737675-158280", # 	Viepsajåkkå
+                             `EU_CD` == "SE741654-169042" ~ "SE741419-169012", # 	Muddusälven
+                             `EU_CD` == "SE727831-165123" ~ "SE728070-165120", # 	Bergmyrbäcken
+                             `EU_CD` == "SE754016-181191" ~ "SE753778-181417", # 	Kitkiöjoki
+                             `EU_CD` == "SE708384-145451" ~ "SE708380-145455", # 	Hökvattsån
+                             `EU_CD` == "SE641905-137438" ~ "SE641953-137406", # 	Kolarebäcken
+                             `EU_CD` == "SE703665-153560" ~ "SE703626-153615", # 	Kvarnån
+                             `EU_CD` == "SE639676-147775" ~ "SE639020-148650", # Silverån
+                             TRUE ~ `EU_CD`)) ->
+    fisk_vdr
 ```
 
 
 ```{r include=FALSE}
-fisk_vdr_trends <- 
-  fisk_vdr %>% 
-  select(Stationsnamn, `Stationskoordinat N/X`, `Stationskoordinat E/Y`, 
+fisk_vdr %>% 
+  select(Stationsnamn, 
+         `Stationskoordinat N/X`, 
+         `Stationskoordinat E/Y`, 
          Provtagningsår, 
          `Vattendrag lax`,
          `Vattendrag öring`,
          `Vattendrag totalmängd fisk`,
-         `Vattendrag antal arter`)%>% 
-  gather(variable, value, `Vattendrag lax`:`Vattendrag antal arter`, na.rm = T)%>% 
-  mutate(value=case_when(value==0 ~ NA_real_,
-                         TRUE ~value))%>%
+         `Vattendrag antal arter`) %>% 
+  gather(variable, 
+         value, 
+         `Vattendrag lax`:`Vattendrag antal arter`, 
+         na.rm = T) %>% 
+  mutate(value = case_when(value==0 ~ NA_real_,
+                           TRUE ~value)) %>%
   na.omit() %>% # remove rows with NAs
-  group_by(Stationsnamn, `Stationskoordinat N/X`, `Stationskoordinat E/Y`,  Provtagningsår, variable)%>% 
+  group_by(Stationsnamn, `Stationskoordinat N/X`, `Stationskoordinat E/Y`,  Provtagningsår, variable) %>% 
   summarise(value = value %>% mean(), # calculate yearly mean
             n = n()) %>% 
   ungroup() %>% 
   group_by(Stationsnamn, `Stationskoordinat N/X`, `Stationskoordinat E/Y`, variable) %>% 
-  periods(variable =Provtagningsår,  filter_less_than = 10) %>%
-  mutate(n_years=n(), max_year = max(Provtagningsår)) %>%
+  periods(variable = Provtagningsår, filter_less_than = 10) %>%
+  mutate(n_years = n(), max_year = max(Provtagningsår)) %>%
   filter(max_year >= 2015) %>% 
   ungroup %>% 
-  nest(-Stationsnamn, -`Stationskoordinat N/X`, -`Stationskoordinat E/Y`, -variable) %>% 
-  mutate(fit = future_map(data, ~if(var(.x$value)==0){glm(formula=value~Provtagningsår, data=.x)}else{
-                            
-                            gam(formula = value ~ s(Provtagningsår, k=unique(.x$n_years-2)),
-                              data=.x, 
-                              method="REML", select=T
-                              #family="Gamma(link='log')"
-                              )}, .progress=T),
-  trend = map2(fit, data, ~ predict(object = .x, newdata = .y, type="response")),
-  resid = map(fit, ~resid(.x, type="pearson")))%>% 
-  unnest(data, trend, resid)%>% 
-  gather(type, value, c(5, 8)) %>% 
-  group_by(Stationsnamn, `Stationskoordinat N/X`, `Stationskoordinat E/Y`, variable) #%>% 
-  #mutate(outlier = ifelse(type=="value", abs(resid)>2, NA) %>% ifelse(.==F, NA, .)) # set outlier to TRUE where pearson residual > 2, otherwise NA
+  nest(data = c(-Stationsnamn, -`Stationskoordinat N/X`, -`Stationskoordinat E/Y`, -variable)) %>% 
+  mutate(fit = future_map(data, ~ if (var(.x$value) == 0) {glm(formula = value ~ Provtagningsår, data = .x)
+  } else {gam(formula = value ~ s(Provtagningsår, k = unique(.x$n_years - 2)),
+              data = .x,
+              method = "REML", select = T)}, .progress = T),
+          trend = map2(fit, data, ~ predict(object = .x, newdata = .y, type = "response")),
+          resid = map(fit, ~ resid(.x, type = "pearson")))%>% 
+  unnest(c(data, trend, resid)) %>% 
+  gather(type, value, value, trend) %>% 
+  group_by(Stationsnamn, `Stationskoordinat N/X`, `Stationskoordinat E/Y`, variable) ->
+  fisk_vdr_trends
 ```
 
 ```{r include=FALSE}
-fisk_vdr_mannkendall <- fisk_vdr_trends %>% 
-  filter(type=="value") %>% 
-  nest(-Stationsnamn, -`Stationskoordinat N/X`, -`Stationskoordinat E/Y`,-variable) %>% 
-  mutate(fit = map(data, possibly(~rkt(date=as.data.frame(.x)$Provtagningsår, 
-                                       y=as.data.frame(.x)$value), otherwise=NA_real_)),
-         tidy = map(fit, possibly(~rkt_out(.x), otherwise=NA_real_))) %>% 
-  unnest(tidy) %>% 
-  select(-data, -fit) %>% 
-  mutate(sig.stars=cut(p.value, breaks=c(1, 0.05,0.01,0.001,0.0001,0), 
-                       labels=c("ns","*","**","***","****") %>% rev, ordered_result = T),
+fisk_vdr_trends %>%
+  filter(type == "value") %>%
+  nest(data = c(-Stationsnamn, -`Stationskoordinat N/X`, -`Stationskoordinat E/Y`, -variable)) %>%
+  mutate(fit = map(data, possibly(~ rkt(date = as.data.frame(.x)$Provtagningsår,
+                                        y = as.data.frame(.x)$value), 
+                                  otherwise = NA_real_)),
+         tidy = map(fit, possibly(~ rkt_out(.x), otherwise = NA_real_))) %>%
+  unnest(tidy) %>%
+  select(-data, -fit) %>%
+  mutate(sig.stars = cut(p.value,
+                         breaks = c(1, 0.05, 0.01, 0.001, 0.0001, 0),
+                         labels = c("ns", "*", "**", "***", "****") %>% rev(), 
+                         ordered_result = T),
          p.value = p.value %>% round(4),
-         slope = slope %>% round(4), 
-         tau = tau %>% round(4)) %>% 
-  replace_na(list(sig.stars="****"))
+         slope = slope %>% round(4),
+         tau = tau %>% round(4)) %>%
+  replace_na(list(sig.stars = "****")) ->
+  fisk_vdr_mannkendall
 ```
 
 För samtliga variabler ser processen ut som följer:
@@ -127,7 +147,7 @@ Bedöming om trendanalyser är meningsfulla. Enstaka stationer eller för någon
 ## Vattendrag lax
          
 
-```{r echo=FALSE, fig.height=20, fig.width=20, message=FALSE, warning=FALSE, out.extra='angle=90'}
+```{r echo=FALSE, fig.height=5, fig.width=20, message=FALSE, warning=FALSE, out.extra='angle=90'}
 fisk_vdr_trends %>% 
   filter(variable=="Vattendrag lax") %>% 
   ggplot(aes(x = Provtagningsår, y = value, group = type, linetype = type, color = type)) +
@@ -136,10 +156,7 @@ fisk_vdr_trends %>%
    scale_linetype_manual(values = c("value" = "dashed", "trend" = "solid"), 
                         labels = c("Medelvärden", "Trendvärden"))+
   scale_color_manual(values = c("value" = "blue", "trend" = "red"), 
-                        labels = c("Medelvärden", "Trendvärden"))+
-  geom_point(data = trends %>% 
-  filter(variable=="Insjöfisk totalmängd",outlier==T), aes(group=NULL, color=NULL), color="red")+
-  labs(y="Mätvärden", color="Tidsserie",linetype = "Tidsserie", x="Provtagningsår")
+                        labels = c("Medelvärden", "Trendvärden"))
 ```
 
 
@@ -156,10 +173,7 @@ fisk_vdr_trends %>%
    scale_linetype_manual(values = c("value" = "dashed", "trend" = "solid"), 
                         labels = c("Medelvärden", "Trendvärden"))+
   scale_color_manual(values = c("value" = "blue", "trend" = "red"), 
-                        labels = c("Medelvärden", "Trendvärden"))+
-  geom_point(data = trends %>% 
-  filter(variable=="Insjöfisk abborre",outlier==T), aes(group=NULL, color=NULL), color="red")+
-  labs(y="Mätvärden", color="Tidsserie",linetype = "Tidsserie", x="Provtagningsår")
+                        labels = c("Medelvärden", "Trendvärden"))
 ```
 
 
@@ -175,10 +189,7 @@ fisk_vdr_trends %>%
    scale_linetype_manual(values = c("value" = "dashed", "trend" = "solid"), 
                         labels = c("Medelvärden", "Trendvärden"))+
   scale_color_manual(values = c("value" = "blue", "trend" = "red"), 
-                        labels = c("Medelvärden", "Trendvärden"))+
-  geom_point(data = trends %>% 
-  filter(variable=="Insjöfisk gädda",outlier==T), aes(group=NULL, color=NULL), color="red")+
-  labs(y="Mätvärden", color="Tidsserie",linetype = "Tidsserie", x="Provtagningsår")
+                        labels = c("Medelvärden", "Trendvärden"))
 ```
 
 
@@ -193,17 +204,23 @@ fisk_vdr_trends %>%
    scale_linetype_manual(values = c("value" = "dashed", "trend" = "solid"), 
                         labels = c("Medelvärden", "Trendvärden"))+
   scale_color_manual(values = c("value" = "blue", "trend" = "red"), 
-                        labels = c("Medelvärden", "Trendvärden"))+
-  geom_point(data = trends %>% 
-  filter(variable=="Insjöfisk mört",outlier==T), aes(group=NULL, color=NULL), color="red")+
-  labs(y="Mätvärden", color="Tidsserie",linetype = "Tidsserie", x="Provtagningsår")
+                        labels = c("Medelvärden", "Trendvärden"))
 ```
 
 # Mann-Kendall-tester
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 fisk_vdr_mannkendall %>% 
-  select(Stationsnamn, `Stationskoordinat N/X`, `Stationskoordinat E/Y`, variable, p.value, statistic, slope, tau, sig.stars) %>% datatable()
+  select(Stationsnamn, 
+         `Stationskoordinat N/X`, 
+         `Stationskoordinat E/Y`, 
+         variable, 
+         p.value, 
+         statistic, 
+         slope, 
+         tau, 
+         sig.stars) %>% 
+  datatable()
 
 ```
 

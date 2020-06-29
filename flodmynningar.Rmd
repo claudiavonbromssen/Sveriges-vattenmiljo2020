@@ -56,25 +56,10 @@ Mann-Kendall-test genomförs för varje flod- och havsområde och sammanställs 
 # Beräkningar
 # Initiala inladdningar
 
-library(tidyverse)
-library(mgcv)
-#library(gamlss)
-#library(visreg)
-library(broom)
-library(rkt)
-library(magrittr)
-library(readxl)
-library(DT)
-library(furrr)
+source("shared_functions.R")
 plan(multiprocess)
-Belastningar <- read_excel("Belastning 1969-2017.xlsx")
-
+Belastningar <- read_excel(here("Indata2019/Flodmynningar/Belastning 1969-2017.xlsx"))
 options(scipen = 999)
-
-mse <- function(sm){sum(sm$residuals^2)/(length(sm$residuals) - 2)}
-
-rkt_out <- function(rkt){
-  tibble(p.value = ifelse(is.na(rkt$sl.corrected)==T, rkt$sl, rkt$sl.corrected), statistic = rkt$S, slope = rkt$B, tau=rkt$tau)}
 
 Belastningar <- Belastningar %>% filter(StnNamn != "Trollhättan") %>% 
   mutate(StnNamn = ifelse(StnNamn == "Stockholm", "Stockholm Centralbron", StnNamn))
@@ -82,58 +67,83 @@ Belastningar <- Belastningar %>% filter(StnNamn != "Trollhättan") %>%
 
 ```{r include=FALSE}
 # HELCOM-normalisering
-belastningar_fitted_models <- Belastningar %>% 
- # filter(Flodområde != "OÖVERVAKAT") %>% 
-  gather(variable, value, 7:11, na.rm = T) %>% 
-  mutate(value=value*1000,
+Belastningar %>%
+  # filter(Flodområde != "OÖVERVAKAT") %>%
+  gather(variable, value, 7:11, na.rm = T) %>%
+  mutate(value = value * 1000, # HELCOM-normalisering är skalkänslig...
          log_value = log(value),
-         log_Q = log10(`Medel_Q m3/s`)) %>% 
-  group_by(Område, Flodområde, StnNamn, variable) %>% 
-  mutate(log_Q_bar = mean(`Medel_Q m3/s`) %>% log10) %>% 
-  ungroup() %>% 
-  nest(-Område, -Flodområde, -StnNamn, -variable, -log_Q_bar) %>% 
-  mutate(fit = map(.x = data, possibly(~lm(data=.x, formula=log_value~log_Q), otherwise = NA_real_)),
-         coef = map(fit, possibly(~tidy(.x), otherwise = NA_real_)),
-         mse = map(fit, possibly(~mse(.x), otherwise = NA_real_)),
-         augment   = map(fit, possibly(~augment(.x), otherwise = NA_real_))) %>% 
-  unnest(mse, .drop = F) %>% 
-  unnest(coef, .drop = F) %>% 
-  dplyr::select(-std.error, -statistic,-p.value) %>% 
+         log_Q = log10(`Medel_Q m3/s`)) %>%
+  group_by(Område, Flodområde, StnNamn, variable) %>%
+  mutate(log_Q_bar = mean(`Medel_Q m3/s`) %>% log10()) %>%
+  ungroup() %>%
+  nest(data = c(-Område, -Flodområde, -StnNamn, -variable, -log_Q_bar)) %>%
+  mutate(fit = map(.x = data, possibly(~ lm(data = .x, formula = log_value ~ log_Q), 
+                                       otherwise = NA_real_)),
+         coef = map(fit, possibly(~ tidy(.x), otherwise = NA_real_)),
+         mse = map(fit, possibly(~ mse(.x), otherwise = NA_real_)),
+         augment = map(fit, possibly(~ augment(.x), otherwise = NA_real_))) %>%
+  unnest(mse) %>%
+  unnest(coef) %>%
+  dplyr::select(-std.error, -statistic, -p.value) %>%
   spread(term, estimate) %>% 
-  unnest(data, augment) %>% 
-  mutate(flow_stand_value = exp(log_value*(`(Intercept)` + log_Q*log_Q_bar)/.fitted)*exp(0.5*mse)) %>% 
-  dplyr::select(-log_Q_bar, -mse, -`(Intercept)`, -log_Q, -log_value, -log_Q2,-log_value1,-log_Q1, -.fitted,-.se.fit,-.resid,-.hat,-.sigma,-.cooksd,-.std.resid) %>% 
-  nest(-Område, -Flodområde, -StnNamn, -variable) %>%
-  mutate(fit = future_map(data, ~gam(flow_stand_value ~ s(År, k = nrow(.x)), 
-                               data=.x, select=T,
-                               method="REML", family="Gamma(link='log')"), .progress = T),
-        splines = map2(fit, data, ~ predict(object = .x, newdata = .y, type="response") %>% as_tibble)) %>% 
-  unnest(data, splines) %>%
-  rename(predicted = value1) %>% 
-  mutate(value=value/1000,
-         flow_stand_value=flow_stand_value/1000,
-         predicted=predicted/1000) %>% 
-  select(-`Medel_Q m3/s`, -`Areal km2`)
+  rename(log_Q_coef = log_Q) %>% 
+  mutate(data = map2(data, augment, ~suppressMessages(.x %>% full_join(.y)))) %>% 
+  unnest(data) %>% 
+  mutate(flow_stand_value = exp(log_value * (`(Intercept)` + log_Q_coef * log_Q_bar) / .fitted) * exp(0.5 * mse)) %>%
+  dplyr::select(-log_Q_bar, 
+                -mse, 
+                -`(Intercept)`, 
+                -log_Q, 
+                -log_value,
+                -log_Q_coef,
+                -.fitted, 
+                -.se.fit, 
+                -.resid, 
+                -.hat, 
+                -.sigma, 
+                -.cooksd, 
+                -.std.resid,
+                -fit,
+                -augment) %>%
+  nest(data = c(-Område, -Flodområde, -StnNamn, -variable)) %>%
+  mutate(fit = future_map(data, ~ gam(flow_stand_value ~ s(År, k = nrow(.x)-2),
+                                      data = .x, select = T,
+                                      method = "REML", 
+                                      family = Gamma(link="log")), 
+                          .progress = T),
+         splines = map2(fit, data, ~ predict(object = .x, newdata = .y, type = "response") %>% as_tibble() %>% rename(predicted = value))) %>% 
+unnest(c(data, splines)) %>%
+  mutate(value = value / 1000,
+         flow_stand_value = flow_stand_value / 1000,
+         predicted = predicted / 1000) %>%
+  select(-`Medel_Q m3/s`, -`Areal km2`, -fit) ->
+  belastningar_fitted_models
 ```
 
 
 ```{r include=FALSE}
-medelavrinning_trend <- Belastningar %>% select(1:4,6) %>% 
+Belastningar %>% 
+  select(Område:År, 
+         `Medel_Q m3/s`) %>% 
   #filter(StnNamn == "Älvkarleby") %>% #testfall
-   group_by(Område, Flodområde, StnNamn) %>% 
+  group_by(Område, Flodområde, StnNamn) %>% 
   rename(medelq = `Medel_Q m3/s`) %>% 
-  filter(!is.na(medelq)) %>% 
+  drop_na(medelq) %>% 
   nest() %>% 
-  mutate(fit = future_map(data, ~gam(medelq ~ s(År, k = n_distinct(.x$År), bs="ad"), 
-                               data=.x, select=T,
-                               method="REML", family="Gamma(link='log')"), .progress = T),
+  mutate(fit = future_map(data, ~gam(medelq ~ s(År, k = n_distinct(.x$År), 
+                                                 bs="ad"), 
+                                     data=.x, 
+                                     select=T,
+                                     method="REML", 
+                                     family=Gamma(link='log'))),
         splines = map2(fit, data, ~ predict(object = .x, newdata = .y, type="response") %>% as_tibble)) %>% 
-  unnest(data, splines) %>% 
+  unnest(c(data, splines)) %>% 
+  select(-fit) %>% 
   rename(predicted = value) %>% 
   gather(variable, value, 5) %>% 
   select(1:4, 6,7, 5) %>% 
-  mutate(flow_stand_value = value) # så det funkar i resten av koden
-  
+  mutate(flow_stand_value = value) -> # så det funkar i resten av koden
+  medelavrinning_trend
  belastningar_fitted_models <- medelavrinning_trend %>% full_join(belastningar_fitted_models)
 ```
 
@@ -174,10 +184,9 @@ medelavrinning_trend <- Belastningar %>% select(1:4,6) %>%
 #         tau = tau %>% round(4)) %>% 
 #         replace_na(list(sig.stars="****"))
 ### Stationer
-Belastningar_mannkendall_stationer <- 
-  belastningar_fitted_models %>% 
+belastningar_fitted_models %>% 
   #mutate(StnNamn = ifelse(is.na(StnNamn) == T, yes = Flodområde, no = StnNamn)) %>% 
-  nest(-Område, -Flodområde, -StnNamn, -variable) %>% 
+  nest(data = c(-Område, -Flodområde, -StnNamn, -variable)) %>% 
   mutate(fit = map(data, possibly(~rkt(as.data.frame(.x)$År, 
                                        y=as.data.frame(.x)$flow_stand_value#, 
                                        #block = .x %$% StnNamn %>% factor %>% as.numeric
@@ -190,14 +199,15 @@ Belastningar_mannkendall_stationer <-
          p.value = p.value %>% round(4),
          slope = slope %>% round(4), 
          tau = tau %>% round(4)) %>% 
-         replace_na(list(sig.stars="****"))
+         replace_na(list(sig.stars="****")) ->
+  Belastningar_mannkendall_stationer
 
 ```
 
 ```{r include=FALSE}
 # Generate plots
 
-TOC_ton_plot <- belastningar_fitted_models %>% filter(variable == "TOC ton") %>% gather(type, value, 8:10) %>% 
+TOC_ton_plot <- belastningar_fitted_models %>% filter(variable == "TOC ton") %>% gather(type, value, 6:8) %>% 
   ggplot(aes(x = År, y = value, group = type, linetype = type, color = type)) +
   scale_linetype_manual(values = c("value" = "dashed", "flow_stand_value" = "solid", "predicted" = "solid"), 
                         labels = c("Flödesnormal-\r\niserade värden", "Trendvärden", "Uppmätta värden")) +
@@ -207,7 +217,7 @@ TOC_ton_plot <- belastningar_fitted_models %>% filter(variable == "TOC ton") %>%
   facet_wrap(~ Flodområde, scales = "free_y") +
   labs(x = "År", y = "TOC ton", color = "Tidsserie", linetype = "Tidsserie")
 
-Tot_N_ton_plot <- belastningar_fitted_models %>% filter(variable == "Tot_N ton") %>% gather(type, value, 8:10) %>% 
+Tot_N_ton_plot <- belastningar_fitted_models %>% filter(variable == "Tot_N ton") %>% gather(type, value, 6:8) %>% 
   ggplot(aes(x = År, y = value, group = type, linetype = type, color = type)) +
   scale_linetype_manual(values = c("value" = "dashed", "flow_stand_value" = "solid", "predicted" = "solid"), 
                         labels = c("Flödesnormal-\r\niserade värden", "Trendvärden", "Uppmätta värden")) +
@@ -217,7 +227,7 @@ Tot_N_ton_plot <- belastningar_fitted_models %>% filter(variable == "Tot_N ton")
   facet_wrap(~ Flodområde, scales = "free_y") +
   labs(x = "År", y = "Tot N ton", color = "Tidsserie", linetype = "Tidsserie")
 
-Tot_P_ton_plot <- belastnignar_fitted_models %>% filter(variable == "Tot-P ton") %>% gather(type, value, 8:10) %>% 
+Tot_P_ton_plot <- belastningar_fitted_models %>% filter(variable == "Tot-P ton") %>% gather(type, value, 6:8) %>% 
   ggplot(aes(x = År, y = value, group = type, linetype = type, color = type)) +
   scale_linetype_manual(values = c("value" = "dashed", "flow_stand_value" = "solid", "predicted" = "solid"), 
                         labels = c("Flödesnormal-\r\niserade värden", "Trendvärden", "Uppmätta värden")) +
@@ -227,7 +237,7 @@ Tot_P_ton_plot <- belastnignar_fitted_models %>% filter(variable == "Tot-P ton")
   facet_wrap(~ Flodområde, scales = "free_y") +
   labs(x = "År", y = "Tot P ton", color = "Tidsserie", linetype = "Tidsserie")
   
-PO4_P_ton_plot <- belastningar_fitted_models %>% filter(variable == "PO4-P ton") %>% gather(type, value, 8:10) %>% 
+PO4_P_ton_plot <- belastningar_fitted_models %>% filter(variable == "PO4-P ton") %>% gather(type, value, 6:8) %>% 
   ggplot(aes(x = År, y = value, group = type, linetype = type, color = type)) +
   scale_linetype_manual(values = c("value" = "dashed", "flow_stand_value" = "solid", "predicted" = "solid"), 
                         labels = c("Flödesnormal-\r\niserade värden", "Trendvärden", "Uppmätta värden")) +
@@ -238,7 +248,7 @@ PO4_P_ton_plot <- belastningar_fitted_models %>% filter(variable == "PO4-P ton")
   labs(x = "År", y = "PO4-P ton", color = "Tidsserie", linetype = "Tidsserie")
 
 
-Oorganiskt_N_plot <- belastningar_fitted_models %>% filter(variable == "Oorganiskt N") %>% gather(type, value, 8:10) %>% 
+Oorganiskt_N_plot <- belastningar_fitted_models %>% filter(variable == "Oorganiskt N") %>% gather(type, value, 6:8) %>% 
   ggplot(aes(x = År, y = value, group = type, linetype = type, color = type)) +
   scale_linetype_manual(values = c("value" = "dashed", "flow_stand_value" = "solid", "predicted" = "solid"), 
                         labels = c("Flödesnormal-\r\niserade värden", "Trendvärden", "Uppmätta värden")) +
@@ -539,13 +549,19 @@ Oorganiskt_N_plot
 Uppdelat på flodområden och variabler.
 
 ```{r echo=FALSE}
-Belastningar_mannkendall_flodområden %>% datatable()
+#Belastningar_mannkendall_flodområden %>% datatable()
 ```
 
 ## Havsområden
 Uppdelat på områden och variabler.
 
 ```{r echo=FALSE}
-Belastningar_mannkendall_områden %>% datatable()
+#Belastningar_mannkendall_områden %>% datatable()
+```
+
+
+
+```{r}
+Belastningar_mannkendall_stationer%>%datatable()
 ```
 
