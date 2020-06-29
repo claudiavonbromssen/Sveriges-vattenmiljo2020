@@ -1,6 +1,6 @@
 # Gemensamma funktioner och import
 if (!require("pacman")) install.packages("pacman")
-pacman::p_load(tidyverse, readxl, lubridate, mgcv, magrittr, broom, forecast, zoo, rkt, DT, furrr, here)
+pacman::p_load(tidyverse, readxl, lubridate, mgcv, magrittr, broom, forecast, zoo, rkt, DT, furrr,plan, here)
 
 plan(multiprocess)
 
@@ -121,3 +121,4 @@ out <-
            )
   return(out)
 }
+

@@ -128,8 +128,8 @@ trends %>%
                         labels = c("Medelvärden", "Trendvärden"))+
   scale_color_manual(values = c("value" = "blue", "trend" = "red"), 
                         labels = c("Medelvärden", "Trendvärden"))+
-  geom_point(data = trends %>% 
-  filter(variable=="Kfyll (µg/l)",outlier==T), aes(group=NULL, color=NULL), color="red")+
+ # geom_point(data = trends %>% 
+  #filter(variable=="Kfyll (µg/l)",outlier==T), aes(group=NULL, color=NULL), color="red")+
   labs(y="Mätvärden", color="Tidsserie",linetype = "Tidsserie", x="Provtagningsår")
 ```
 
@@ -148,8 +148,8 @@ trends %>%
                         labels = c("Medelvärden", "Trendvärden"))+
   scale_color_manual(values = c("value" = "blue", "trend" = "red"), 
                         labels = c("Medelvärden", "Trendvärden"))+
-  geom_point(data = trends %>% 
-  filter(variable=="Biovolym (mm3/l)",outlier==T), aes(group=NULL, color=NULL), color="red")+
+ # geom_point(data = trends %>% 
+ #filter(variable=="Biovolym (mm3/l)",outlier==T), aes(group=NULL, color=NULL), color="red")+
   labs(y="Mätvärden", color="Tidsserie",linetype = "Tidsserie", x="Provtagningsår")
 ```
 
@@ -165,8 +165,8 @@ trends %>%
                         labels = c("Medelvärden", "Trendvärden"))+
   scale_color_manual(values = c("value" = "blue", "trend" = "red"), 
                         labels = c("Medelvärden", "Trendvärden"))+
-  geom_point(data = trends %>% 
-  filter(variable=="Cyanobacteria (mm3/l)",outlier==T), aes(group=NULL, color=NULL), color="red")+
+ # geom_point(data = trends %>% 
+ # filter(variable=="Cyanobacteria (mm3/l)",outlier==T), aes(group=NULL, color=NULL), color="red")+
   labs(y="Mätvärden", color="Tidsserie",linetype = "Tidsserie", x="Provtagningsår")
 ```
 

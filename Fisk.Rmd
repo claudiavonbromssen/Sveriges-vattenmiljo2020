@@ -42,7 +42,7 @@ source("shared_functions.R")
 ```
 
 ```{r include=FALSE}
-read.csv(here("Indata2018/Fiske/SverigesVattenmiljöFiskSjöNpueB&Narter.csv")) %>%
+read.csv(here("Indata2019/Fiske/SverigesVattenmiljöFiskSjöNpueB&Narter.csv")) %>%
   mutate(Stationsnamn = NAMN,
          Provtagningsår = Anno,
          `Insjöfisk totalmängd` = NpueBtotal,

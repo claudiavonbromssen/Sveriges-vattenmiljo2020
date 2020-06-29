@@ -19,51 +19,54 @@ source("joined_dataset.R", encoding = "UTF-8")
 # Importera data (.txt-filer)
 joined_dataset %>% 
   select(1:Provkommentar, 
-         `NO2+NO3-N (µg/l)`,
-         `NH4-N (µg/l)`, #Oorganiskt kväve
-         `Kjeld.-N (µg/l)`, 
-         `Tot-N_TNb (µg/l)`,
-         `Tot-N_ps (µg/l)`, # Totalt kväve
-         `Tot-N (µg/l)`,
-         `Tot-P (µg/l)`, #Totalt fosfor
-         `PO4-P (µg/l)`, #Fosfatfosfor
-         `TOC (mg/l)`, # Totalt organiskt kol
+         `NO2+NO3-N (µg/l N)`,
+         `NH4-N (µg/l N)`, #Oorganiskt kväve
+         `Kjeld.-N (µg/l N)`, 
+         `Tot-N_TNb (µg/l N)`,
+         `Tot-N_ps (µg/l N)`, # Totalt kväve
+         `Tot-N (µg/l N)`,
+         `Tot-P (µg/l P)`, #Totalt fosfor
+         `PO4-P (µg/l P)`, #Fosfatfosfor
+         `TOC (mg/l C)`, # Totalt organiskt kol
          `Alk/Acid (mekv/l)`,
          `Alk. (mekv/l)`, #Alkalinitet
          `Siktdjup med kikare (m)`, 
          `Siktdjup utan kikare (m)`,
          `Siktdjup (m)`, # Siktdjup
-         `Si (µg/l)`, # Kisel
+         #`Si (µg/l)`, # Kisel
          `Si (mg/l)`, 
          `SO4_IC (mekv/l)`, #Sulfat
          pH,
+         Regionala,
          `Abs_F 420 (/5cm)`) %>% # Brunhet
   as_tibble() %>% 
-  mutate(`Oorganiskt N (µg/l)` = `NO2+NO3-N (µg/l)`+`NH4-N (µg/l)`,
-    `Tot-N_TNb (µg/l)` = ifelse((Provtagningsår + (Provtagningsmånad-1)/12)>(2009+8/12), `Tot-N_TNb (µg/l)`, NA),
-    `Tot-N (µg/l)` = `Tot-N_TNb (µg/l)` %>% 
-      coalesce(`Kjeld.-N (µg/l)`+`NO2+NO3-N (µg/l)`) %>% 
-      coalesce(`Tot-N_ps (µg/l)`) %>% 
-      coalesce(`Tot-N (µg/l)`),
+  mutate(`Oorganiskt N (µg/l N)` = `NO2+NO3-N (µg/l N)`+`NH4-N (µg/l N)`,
+    `Tot-N_TNb (µg/l N)` = ifelse((Provtagningsår + (Provtagningsmånad-1)/12)>(2009+8/12), `Tot-N_TNb (µg/l N)`, NA),
+    `Tot-N (µg/l N)` = `Tot-N_TNb (µg/l N)` %>% 
+      coalesce(`Kjeld.-N (µg/l N)`+`NO2+NO3-N (µg/l N)`) %>% 
+      coalesce(`Tot-N_ps (µg/l N)`) %>% 
+      coalesce(`Tot-N (µg/l N)`),
     `Alkalinitet (mekv/l)` = `Alk/Acid (mekv/l)` %>% coalesce(`Alk. (mekv/l)`),
     `Siktdjup (m)` = `Siktdjup med kikare (m)` %>% 
          coalesce(`Siktdjup utan kikare (m)`) %>% 
          coalesce(`Siktdjup (m)`),
-    `Si (µg/l)` = `Si (µg/l)` %>% coalesce(`Si (mg/l)`/1000)) %>% 
+    `Si (µg/l)` = `Si (mg/l)`/1000
+   ) %>% 
   group_by(Stationsnamn, `Stationskoordinat N/X`, `Stationskoordinat E/Y`, Provdatum) %>% 
   filter(`Max provdjup (m)` <= 2, `Max provdjup (m)` == min(`Max provdjup (m)`)) %>%
   ungroup() %>% # Ytligaste provet som inte är djupare än 2 meter
     select(1:25, 
-         `Oorganiskt N (µg/l)`,
-         `Tot-N (µg/l)`,
-         `Tot-P (µg/l)`, 
-         `PO4-P (µg/l)`, 
-         `TOC (mg/l)`,
+         `Oorganiskt N (µg/l N)`,
+         `Tot-N (µg/l N)`,
+         `Tot-P (µg/l P)`, 
+         `PO4-P (µg/l P)`, 
+         `TOC (mg/l C)`,
          `Alkalinitet (mekv/l)`,
          `Siktdjup (m)`,
          `Si (µg/l)`,
          `SO4_IC (mekv/l)`,
          pH,
+         Regionala,
          `Abs_F 420 (/5cm)`) %>% 
   mutate(year = ifelse(Provtagningsmånad == 12, yes = Provtagningsår+1, no=Provtagningsår),
         season = Provtagningsmånad %>% 
@@ -205,7 +208,7 @@ kemi_sjo_trender %>%
 ```{r echo=FALSE, fig.height=25, fig.width=20, message=FALSE, warning=FALSE}
 kemi_sjo_trender %>% 
   filter(variable == "Vattentemperatur ytvatten") %>% 
-  ggplot(aes(x=Provtagningsår, y=value))+
+  ggplot(aes(x=year, y=value))+
   geom_line(linetype="dashed")+
   facet_wrap(~paste(Stationsnamn, "\r\n",`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y", ncol = 8)+
   geom_line(aes(y=trend), linetype="solid")+

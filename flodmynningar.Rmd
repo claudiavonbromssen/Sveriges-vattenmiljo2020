@@ -58,7 +58,7 @@ Mann-Kendall-test genomförs för varje flod- och havsområde och sammanställs 
 
 source("shared_functions.R")
 plan(multiprocess)
-Belastningar <- read_excel(here("Indata2018/Flodmynningar/Belastning 1969-2017.xlsx"))
+Belastningar <- read_excel(here("Indata2019/Flodmynningar/Belastning 1969-2017.xlsx"))
 options(scipen = 999)
 
 Belastningar <- Belastningar %>% filter(StnNamn != "Trollhättan") %>% 
@@ -549,13 +549,19 @@ Oorganiskt_N_plot
 Uppdelat på flodområden och variabler.
 
 ```{r echo=FALSE}
-Belastningar_mannkendall_flodområden %>% datatable()
+#Belastningar_mannkendall_flodområden %>% datatable()
 ```
 
 ## Havsområden
 Uppdelat på områden och variabler.
 
 ```{r echo=FALSE}
-Belastningar_mannkendall_områden %>% datatable()
+#Belastningar_mannkendall_områden %>% datatable()
+```
+
+
+
+```{r}
+Belastningar_mannkendall_stationer%>%datatable()
 ```
 

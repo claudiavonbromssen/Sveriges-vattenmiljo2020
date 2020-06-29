@@ -10,40 +10,40 @@ source("shared_functions.R")
 ```
 
 ```{r}
-trendvattendrag_kemi <- import_slu_mvm_data_excel(here("Indata2018/Vattendrag/Vattenkemi/Trendvattendrag.xlsx"), numeric_var = 26)
+trendvattendrag_kemi <- import_slu_mvm_data_excel(here("Indata2019/Vattendrag/Vattenkemi/Trendvattendrag.xlsx"), numeric_var = 26)
 ```
 
 
 ```{r  include=FALSE}
 trendvattendrag_kemi %>% 
   select(1:25, 
-         `NO2+NO3-N (µg/l)`,
-         `NH4-N (µg/l)`, # Oorganiskt kväve
-         `Kjeld.-N (µg/l)`, 
-         `Tot-N_TNb (µg/l)`,
-         `Tot-N_ps (µg/l)`, # Totalt kväve
-         `Tot-P (µg/l)`, #Totalt fosfor
-         `PO4-P (µg/l)`, #Fosfatfosfor (Lättillgängligt fosfor?)
-         `TOC (mg/l)`, # Totalt organiskt kol
+         `NO2+NO3-N (µg/l N)`,
+         `NH4-N (µg/l N)`, # Oorganiskt kväve
+         `Kjeld.-N (µg/l N)`, 
+         `Tot-N_TNb (µg/l N)`,
+         `Tot-N_ps (µg/l N)`, # Totalt kväve
+         `Tot-P (µg/l P)`, #Totalt fosfor
+         `PO4-P (µg/l P)`, #Fosfatfosfor (Lättillgängligt fosfor?)
+         `TOC (mg/l C)`, # Totalt organiskt kol
          `Alk/Acid (mekv/l)`,
          `Si (mg/l)`, 
          `SO4_IC (mekv/l)`, #Sulfat
          pH,
          `Abs_F 420 (/5cm)`) %>% # Brunhet
   as_tibble() %>% 
-  mutate(`Oorganiskt N (µg/l)` = `NO2+NO3-N (µg/l)`+`NH4-N (µg/l)`,
-         `Tot-N_TNb (µg/l)` = ifelse((Provtagningsår + (Provtagningsmånad-1)/12)>(2009+8/12), `Tot-N_TNb (µg/l)`, NA),
-         `Tot-N (µg/l)` = `Tot-N_TNb (µg/l)` %>% 
-           coalesce(`Kjeld.-N (µg/l)`+`NO2+NO3-N (µg/l)`) %>% 
-           coalesce(`Tot-N_ps (µg/l)`),
+  mutate(`Oorganiskt N (µg/l N)` = `NO2+NO3-N (µg/l N)`+`NH4-N (µg/l N)`,
+         `Tot-N_TNb (µg/l N)` = ifelse((Provtagningsår + (Provtagningsmånad-1)/12)>(2009+8/12), `Tot-N_TNb (µg/l N)`, NA),
+         `Tot-N (µg/l N)` = `Tot-N_TNb (µg/l N)` %>% 
+           coalesce(`Kjeld.-N (µg/l N)`+`NO2+NO3-N (µg/l N)`) %>% 
+           coalesce(`Tot-N_ps (µg/l N)`),
          `Alkalinitet (mekv/l)` = `Alk/Acid (mekv/l)`,
          `Si (µg/l)` = `Si (mg/l)`/1000) %>% 
   select(1:25, 
-         `Oorganiskt N (µg/l)`,
-         `Tot-N (µg/l)`,
-         `Tot-P (µg/l)`, 
-         `PO4-P (µg/l)`, 
-         `TOC (mg/l)`,
+         `Oorganiskt N (µg/l N)`,
+         `Tot-N (µg/l N)`,
+         `Tot-P (µg/l P)`, 
+         `PO4-P (µg/l P)`, 
+         `TOC (mg/l C)`,
          `Alkalinitet (mekv/l)`,
          `Si (µg/l)`,
          `SO4_IC (mekv/l)`,
