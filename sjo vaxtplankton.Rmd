@@ -46,10 +46,10 @@ source("joined_dataset.R", encoding = "UTF-8")
 
 
 ```{r include=FALSE}
-trends <- 
-  joined_dataset %>% 
+joined_dataset %>% 
   select(Provdatum, 
          Stationsnamn, `Stationskoordinat N/X`, `Stationskoordinat E/Y`, 
+         Regionala, 
          Provtagningsår, 
          Provtagningsmånad,
          `Max provdjup (m)`, 
@@ -58,35 +58,39 @@ trends <-
          `Cyanobacteria (mm3/l)`) %>% 
   gather(variable, value, `Kfyll (µg/l)`:`Cyanobacteria (mm3/l)`, na.rm = T) %>% 
   mutate(value = ifelse(variable=="Kfyll (µg/l)"&`Max provdjup (m)`>2, NA_real_, value)) %>% # set Kfyll values for maximum sample depth more than 2 meter to NA
-  na.omit() %>% # remove rows with NAs
+  drop_na(value) %>% # remove rows with NAs
   select(-`Max provdjup (m)`) %>% 
   filter(Provtagningsmånad %in% c(7,8)) %>% # select values from July and August 
-  group_by(Stationsnamn, `Stationskoordinat N/X`, `Stationskoordinat E/Y`, Provtagningsår, variable) %>% 
+  group_by(Stationsnamn, `Stationskoordinat N/X`, `Stationskoordinat E/Y`, Provtagningsår, variable, Regionala) %>% 
   summarise(value = value %>% mean(), # calculate yearly mean
             n = n()) %>% 
   ungroup() %>% 
+  distinct() %>% 
   group_by(Stationsnamn, `Stationskoordinat N/X`, `Stationskoordinat E/Y`, variable) %>% 
   periods(variable =Provtagningsår, filter_less_than = 10) %>%
   mutate(n_years=n(), max_year = max(Provtagningsår)) %>%
   filter(max_year >= 2015) %>% 
   ungroup %>% 
-  nest(data=c(-Stationsnamn, -`Stationskoordinat N/X`, -`Stationskoordinat E/Y`, -variable)) %>% 
+  #group_by(Stationsnamn, `Stationskoordinat N/X`, `Stationskoordinat E/Y`, variable, Regionala)# %>%
+ # summarise(n_years = min(n_years)) %>% View
+  nest(data=c(-Stationsnamn, -`Stationskoordinat N/X`, -`Stationskoordinat E/Y`, -variable, -Regionala)) %>% 
   mutate(fit = future_map(data, ~if(var(.x$value)==0){glm(formula=value~Provtagningsår, data=.x)}else{
                             gam(formula = value ~ s(Provtagningsår, k=unique(.x$n_years-2)),
                               data=.x, 
                               method="REML", select=T,
                               )}, .progress=T),
-  trend = map2(fit, data, ~ predict(object = .x, newdata = .y, type="response")),
-  resid = map(fit, ~resid(.x, type="pearson"))) %>% 
+          trend = map2(fit, data, ~ predict(object = .x, newdata = .y, type="response")),
+          resid = map(fit, ~resid(.x, type="pearson"))) %>% 
   unnest(c(data, trend, resid)) %>% 
   gather(type, value, value, trend) %>% 
-  group_by(Stationsnamn, `Stationskoordinat N/X`, `Stationskoordinat E/Y`, variable)
+  group_by(Stationsnamn, `Stationskoordinat N/X`, `Stationskoordinat E/Y`, variable) ->
+  trends
 ```
 
 ```{r include=FALSE}
-vaxtplankton_mannkendall <- trends %>% 
+trends %>% 
   filter(type=="value") %>% 
-  nest(data = c(-Stationsnamn, -`Stationskoordinat N/X`, -`Stationskoordinat E/Y`,-variable)) %>% 
+  nest(data = c(-Stationsnamn, -`Stationskoordinat N/X`, -`Stationskoordinat E/Y`,-variable, -Regionala)) %>% 
   mutate(fit = map(data, possibly(~rkt(date=as.data.frame(.x)$Provtagningsår, 
                                        y=as.data.frame(.x)$value), otherwise=NA_real_)),
          tidy = map(fit, possibly(~rkt_out(.x), otherwise=NA_real_))) %>% 
@@ -97,7 +101,8 @@ vaxtplankton_mannkendall <- trends %>%
          p.value = p.value %>% round(4),
          slope = slope %>% round(4), 
          tau = tau %>% round(4)) %>% 
-  replace_na(list(sig.stars="****"))
+  replace_na(list(sig.stars="****")) -> 
+  vaxtplankton_mannkendall
 ```
 
 För samtliga variabler ser processen ut som följer:

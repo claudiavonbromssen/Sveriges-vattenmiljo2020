@@ -1,6 +1,6 @@
 # Gemensamma funktioner och import
 if (!require("pacman")) install.packages("pacman")
-pacman::p_load(tidyverse, readxl, lubridate, mgcv, magrittr, broom, forecast, zoo, rkt, DT, furrr,plan, here)
+pacman::p_load(tidyverse, readxl, lubridate, mgcv, magrittr, broom, forecast, zoo, rkt, DT, furrr, here)
 
 plan(multiprocess)
 
@@ -21,7 +21,7 @@ periods <- function(data,
     dplyr::arrange(!!variable_enquo) %>%
     mutate(period = cumsum(c(1, diff(!!variable_enquo) >= threshold+1))) %>%
     group_by(period, add=T) %>%
-    mutate(n_year_period = n_distinct(!!variable_enquo))
+    mutate(n_year_period = !!variable_enquo %>% unique %>% length())
 
   if(!is_empty(groups_vec)){out <- out %>% group_by(!!!groups_vec)}else{out <- out %>% ungroup}
 

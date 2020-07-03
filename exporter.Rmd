@@ -48,6 +48,7 @@ codebook <- tibble::tribble(
                                     "Alkalinitet",        "Alkalinitet (mekv/l)",
                                         "Brunhet",            "Abs_F 420 (/5cm)",
                                              "pH",                          "pH",
+                                     "Syrgashalt",        "Syrgashalt (mg/l O2)",
               "Total kvävebelastning  till havet",                   "Tot_N ton",
          "Belastning oorganiskt kväve till havet",                "Oorganiskt N",
               "Total fosforbelastning till havet",                   "Tot-P ton",
