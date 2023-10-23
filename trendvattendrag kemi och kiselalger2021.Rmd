@@ -1,0 +1,718 @@
+---
+title: "Trendvattendrag - kemi"
+output:
+  html_document:
+    df_print: paged
+---
+```{r echo=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+#Initial inladdning av paket och egenskrivna funktioner
+source("shared_functions.R")
+```
+
+```{r}
+trendvattendrag_kemi <- import_slu_mvm_data_excel(here("Indata2022/Vattendrag/Vattenkemi/Trendvattendrag.xlsx"), numeric_var = 26)
+trendvattendrag_kemi$Undersökningstyp = trendvattendrag_kemi$Undersökningstyp %>% as.character()
+trendvattendrag_kemi$Provkommentar = trendvattendrag_kemi$Provkommentar %>% as.character()
+
+ikeuvattendrag_kemi <- import_slu_mvm_data_excel(here("Indata2022/Vattendrag/Vattenkemi/IKEU vdr.xlsx"), numeric_var = 26)
+ikeuvattendrag_kemi$Undersökningstyp = ikeuvattendrag_kemi$Undersökningstyp %>% as.character()
+ikeuvattendrag_kemi$Provkommentar = ikeuvattendrag_kemi$Provkommentar %>% as.character()
+
+flodmynningar_kemi <- import_slu_mvm_data_excel(here("Indata2022/Flodmynningar\\flodmynningar.xlsx"), numeric_var = 26)
+flodmynningar_kemi$Undersökningstyp = flodmynningar_kemi$Undersökningstyp %>% as.character()
+flodmynningar_kemi$Provkommentar = flodmynningar_kemi$Provkommentar %>% as.character()
+
+kemi<-bind_rows(trendvattendrag_kemi, ikeuvattendrag_kemi, flodmynningar_kemi)%>%
+  mutate(Övervakningsstation=case_when(Övervakningsstation=="Skuggälven Ängarna"~"Skuggälven",
+                                       Övervakningsstation=="Storselsån Storsele"~"Storselsån",
+                                       Övervakningsstation=="Arån Arålund"~"Arån",
+                                       Övervakningsstation=="Härån (Storån)"~"Härån",
+                                       Övervakningsstation=="Sörjabäcken (Lillån)"~"Sörjabäcken",
+                                       Övervakningsstation=="Enån, nedan sågen"~"Enån",
+                                       Övervakningsstation=="Lillån, E4:an"~"Lillån",
+                                       Övervakningsstation=="Stridbäcken, E4:an"~"Stridbäcken",
+                                       Övervakningsstation=="Svanån, vid vägen"~"Svanån",
+                                       Övervakningsstation=="Vingån, Vingäng"~"Vingån",
+                                       Övervakningsstation=="Blankan Ryerna"~"Blankan",
+                                       Övervakningsstation=="Hästgångsån Hästgången"~"Hästgångsån",
+                                       Övervakningsstation=="Källsjöån Källsjöklack"~"Källsjöån",
+                                       TRUE~Övervakningsstation))%>%
+  mutate(`EU id`=case_when(Övervakningsstation=="Verkaån, Skepparp"~"00206365",
+                           TRUE~`EU id`))%>%
+  mutate(`EU id`=case_when(`EU id`=="SE699972-140367"~"SE700012-140354", #Bastuån
+                           `EU id`=="SE627432-134607"~"SE627958-134477", #*Blankan
+                           `EU id`=="SE638300-141085"~"SE638561-141289", #Hästgången
+                           `EU id`=="SE683563-155010"~"SE683537-155138", #Källsjöån
+                           `EU id`=="SE663718-148037"~"SE663532-523976", #Laxbäcken
+                           `EU id`=="SE654141-124734"~"SE654022-124861", #Skuggälven
+                           `EU id`=="SE707195-161570"~"SE707204-161537", #STorselsån
+                           `EU id`=="SE697805-139065"~"SE697717-139085", #Arån
+                           `EU id`=="SE684705-153450"~"SE684404-578511", #Härån
+                           `EU id`=="SE697145-157980"~"SE697231-157849", #Hornsjöbäcken
+                           `EU id`=="SE631840-133310"~"SE631375-379389", #Lillån-Bosgårdsån
+                           `EU id`=="SE673815-153365"~"SE673813-153174", #Sörjabäcken
+                           `EU id`=="SE664307-137031"~"SE664297-136937", #Enån
+                           `EU id`=="SE688278-138278"~"SE688271-138240", #Hammarbäcken
+                           `EU id`=="SE706025-169395"~"SE706176-733260", #Lillån
+                           `EU id`=="SE704640-167395"~"SE704792-167352", #Stridån
+                           `EU id`=="SE638475-137575"~"SE639042-138349", #Svanån
+                           `EU id`=="SE673341-134207"~"SE673303-133869", #Vingån
+                           TRUE~`EU id`))
+                           
+                             
+
+last_year<-2021
+```
+
+
+```{r  include=FALSE}
+
+kemi %>% 
+  mutate(`Cd (µg/l)`=case_when(`Cd (µg/l)`<0.005 ~0.003,
+                               TRUE ~`Cd (µg/l)`))%>%
+  dplyr::select(1:26, 
+         `NO2+NO3-N (µg/l N)`,
+         `NH4-N (µg/l N)`, # Oorganiskt kväve
+         `Kjeld.-N (µg/l N)`, 
+         `Tot-N_TNb (µg/l N)`,
+         `Tot-N_ps (µg/l N)`, # Totalt kväve
+         `Tot-P (µg/l P)`, #Totalt fosfor
+         `PO4-P (µg/l P)`, #Fosfatfosfor (Lättillgängligt fosfor?)
+         `TOC (mg/l C)`, # Totalt organiskt kol
+         `Alk/Acid (mekv/l)`,
+         `Si (mg/l)`, 
+         `SO4_IC (mg/l S)`, #Sulfat
+         `Cd (µg/l)`,
+         `Pb (µg/l)`,
+         `Ni (µg/l)`,
+         `Hg (ng/l)`,
+         pH,
+          `Kond_25 (mS/m)`,
+         `Abs_F 420 (/5cm)`) %>% # Brunhet
+  as_tibble() %>% 
+  mutate(`Oorganiskt N (µg/l N)` = `NO2+NO3-N (µg/l N)`+`NH4-N (µg/l N)`,
+         `Tot-N_TNb (µg/l N)` = ifelse((Provtagningsår + (Provtagningsmånad-1)/12)>(2009+8/12), `Tot-N_TNb (µg/l N)`, NA),
+         `Tot-N (µg/l N)` = `Tot-N_TNb (µg/l N)` %>% 
+           coalesce(`Kjeld.-N (µg/l N)`+`NO2+NO3-N (µg/l N)`) %>% 
+           coalesce(`Tot-N_ps (µg/l N)`),
+         `Alkalinitet (mekv/l)` = `Alk/Acid (mekv/l)`,
+         `Si (µg/l)` = `Si (mg/l)`*1000, 
+         VJA=10^(-pH),
+          `Si (µg/l)` = `Si (mg/l)`/1000) %>%  #Vätejonaktivitet
+  dplyr::select(1:26, 
+         `Oorganiskt N (µg/l N)`,
+         `Tot-N (µg/l N)`,
+         `Tot-P (µg/l P)`, 
+         `PO4-P (µg/l P)`, 
+         `TOC (mg/l C)`,
+         `Alkalinitet (mekv/l)`,
+         `Si (µg/l)`,
+         `SO4_IC (mg/l S)`,
+         `Cd (µg/l)`,
+         `Pb (µg/l)`,
+         `Ni (µg/l)`,
+         `Hg (ng/l)`,
+         VJA,
+         `Kond_25 (mS/m)`,
+         `Abs_F 420 (/5cm)`) %>% 
+  group_by(Övervakningsstation, `Stationskoordinat N/X`, `Stationskoordinat E/Y`, Provdatum, .add=FALSE) %>% # pga min
+  filter(`Max provdjup (m)` <= 2, `Max provdjup (m)` == min(`Max provdjup (m)`)) %>% # Ytligaste provet som inte är djupare än 2 meter
+  ungroup() %>% 
+  gather(variable, value, 27:(ncol(.)), na.rm = T) %>% 
+  group_by(Övervakningsstation, `Stationskoordinat N/X`, `Stationskoordinat E/Y`, variable, .add=FALSE) %>% 
+  periods(Provtagningsår, filter_less_than = 10) %>% 
+    mutate(n_years = n_distinct(Provtagningsår, na.rm = TRUE), max_year = max(Provtagningsår)) %>% 
+  filter(max_year >= 2015, Provtagningsår<=last_year) %>% 
+  ungroup() ->
+  trendvattendrag_kemi_data1
+```
+
+
+Vattentemperatur
+```{r}
+kemi %>% 
+  dplyr::select(1:Provkommentar, 
+         #Regionala,
+         `Min provdjup (m)` ,
+         `Max provdjup (m)` ,
+         `Vattentemperatur (°C)`) %>% 
+  as_tibble() %>% 
+  group_by(Övervakningsstation, `EU id`, `MS_CD C3`,`Stationskoordinat N/X`, `Stationskoordinat E/Y`, Provdatum) %>% 
+  filter(`Max provdjup (m)` <= 2, `Max provdjup (m)` == min(`Max provdjup (m)`)) %>%
+  ungroup() %>% # Ytligaste provet som inte är djupare än 2 meter
+    dplyr::select(1:25, 
+          # Regionala,
+         `Vattentemperatur (°C)`) %>% 
+    mutate(year = ifelse(Provtagningsmånad == 12, yes = Provtagningsår+1, no=Provtagningsår),
+        season = Provtagningsmånad %>% 
+          factor() %>% 
+          fct_collapse("1" = c("1","2","12"),
+                       "2" = c("3","4","5"),
+                       "3" = c("6","7","8"),
+                       "4" = c("9","10","11")) %>% as.character() %>% 
+           parse_number()
+         ) %>% 
+  gather(variable, value, `Vattentemperatur (°C)`, na.rm = T) %>% 
+  group_by(Övervakningsstation, `Stationskoordinat N/X`, `Stationskoordinat E/Y`, variable) %>% 
+ periods(year, filter_less_than = 10, max_year=2017) %>% 
+  mutate(n_years = n_distinct(year, na.rm = TRUE), max_year = max(year)) %>%
+  filter(max_year >= 2015, year<=last_year) %>% 
+  ungroup() -> 
+  vattenkemi_temp
+
+vattenkemi_temp%>%
+group_by(Övervakningsstation, `EU id`, `MS_CD C3`,`Stationskoordinat N/X`, `Stationskoordinat E/Y`, variable, Provtagningsår, Provtagningsmånad,  #månadsmedel
+           n_years) %>% 
+  summarise(value = mean(value, na.rm = T),
+            n = n()) %>% 
+  mutate(observed=1)%>%
+  ungroup() %>%
+  group_by(Övervakningsstation, `EU id`, `MS_CD C3`,`Stationskoordinat N/X`, `Stationskoordinat E/Y`, variable, Provtagningsår, n_years) %>%    #årsmedel
+  summarise(value = mean(value, na.rm = T),
+            n = sum(n),
+            nobs=sum(observed))%>%
+  filter(nobs>10)%>%
+  group_by(Övervakningsstation, `EU id`, `MS_CD C3`,`Stationskoordinat N/X`, `Stationskoordinat E/Y`, variable) %>%
+  mutate(n_yearsTemp = n_distinct(Provtagningsår, na.rm = TRUE))%>%filter(n_yearsTemp>=10)->vattenkemi_temp2
+
+
+```
+Vattentemperatur Maj
+```{r}
+
+kemi %>% 
+  dplyr::select(1:Provkommentar, 
+         #Regionala,
+         `Min provdjup (m)` ,
+         `Max provdjup (m)` ,
+         `Vattentemperatur (°C)`) %>% # Temperatur
+    mutate(`Vattentemperatur (°C) - Maj`=case_when(Provtagningsmånad==5~`Vattentemperatur (°C)`,
+                             TRUE~NA_real_))%>%
+  as_tibble() %>% 
+  group_by(Övervakningsstation, `EU id`, `MS_CD C3`,`Stationskoordinat N/X`, `Stationskoordinat E/Y`, Provdatum) %>% 
+  filter(`Max provdjup (m)` <= 2, `Max provdjup (m)` == min(`Max provdjup (m)`)) %>%
+  ungroup() %>% # Ytligaste provet som inte är djupare än 2 meter
+    dplyr::select(1:25, 
+           #Regionala,
+         `Vattentemperatur (°C) - Maj`) %>% 
+    mutate(year = ifelse(Provtagningsmånad == 12, yes = Provtagningsår+1, no=Provtagningsår),
+        season = Provtagningsmånad %>% 
+          factor() %>% 
+          fct_collapse("1" = c("1","2","12"),
+                       "2" = c("3","4","5"),
+                       "3" = c("6","7","8"),
+                       "4" = c("9","10","11")) %>% as.character() %>% 
+           parse_number()
+         ) %>% 
+  gather(variable, value, `Vattentemperatur (°C) - Maj`, na.rm = T) %>% 
+  group_by(Övervakningsstation, `Stationskoordinat N/X`, `Stationskoordinat E/Y`, variable) %>% 
+ periods(year, filter_less_than = 10, max_year=2017) %>% 
+  mutate(n_years = n_distinct(year, na.rm = TRUE), max_year = max(year)) %>%
+  filter(max_year >= 2015, year<=last_year) %>% 
+  ungroup() -> 
+  vattenkemi_temp3
+```
+
+Vattenkemi_temp2 läggs till senare
+```{r}
+trendvattendrag_kemi_data<- trendvattendrag_kemi_data1 %>% full_join(vattenkemi_temp3)
+```
+
+
+```{r include=FALSE}
+trendvattendrag_kemi_data %>% 
+
+  group_by(Övervakningsstation, `EU id`, `MS_CD C3`,`Stationskoordinat N/X`, `Stationskoordinat E/Y`, variable, Provtagningsår, Provtagningsmånad,  #månadsmedel
+           n_years) %>% 
+  summarise(value = mean(value, na.rm = T),
+            n = n()) %>% 
+  ungroup() %>%
+  group_by(Övervakningsstation, `EU id`, `MS_CD C3`,`Stationskoordinat N/X`, `Stationskoordinat E/Y`, variable, Provtagningsår, n_years) %>%    #årsmedel
+  summarise(value = mean(value, na.rm = T),
+            n = sum(n)) %>% 
+  full_join(vattenkemi_temp2)%>% #Lägga till årsvärden av temperatur
+  ungroup() %>% 
+  mutate(value=case_when(variable=="VJA"~-log10(value),  #beräkna pH ur vätejonaktivitet
+                         TRUE~value),
+         variable=case_when(variable=="VJA"~"pH",
+                            TRUE~variable))%>%
+  arrange(Övervakningsstation,`EU id`, `MS_CD C3`, `Stationskoordinat N/X`, `Stationskoordinat E/Y`, variable, Provtagningsår) %>% 
+    nest(data = c(-Övervakningsstation, -`EU id`, -`MS_CD C3`,-`Stationskoordinat N/X`, -`Stationskoordinat E/Y`, -variable)) %>% 
+    mutate(fit = future_map(data, 
+                            possibly(~ gam(formula = value ~ s(Provtagningsår, k=n_distinct(.x %>% filter(!is.na(value)) %>% .$Provtagningsår)-2),
+                                data = .x, 
+                                method="REML", select=T
+                                ), otherwise = NA_real_), .progress = T)) %>% 
+  mutate(trend = map2(fit, data, possibly(~ predict.gam(object = .x, newdata = .y, type="response"), otherwise = NA_real_), .progress = TRUE)) %>% 
+  unnest(c(data, trend)) ->
+  gam_models_vattendrag_kemi
+  gam_models_vattendrag_kemi$trend = gam_models_vattendrag_kemi$trend %>% as.vector()
+```
+
+Mann-Kendall utan årsmedel för temperatur
+
+```{r include=FALSE}
+trendvattendrag_kemi_data %>% 
+ # filter(!(variable=="Si (mg/l)" & Provtagningsår<2008))%>%
+  filter(n_years >= 10, !is.na(value)) %>% 
+  group_by(Övervakningsstation, `EU id`, `MS_CD C3`,`Stationskoordinat N/X`, `Stationskoordinat E/Y`, variable, Provtagningsår, Provtagningsmånad,
+           n_years) %>% 
+  summarise(value = mean(value, na.rm = T)) %>% 
+  ungroup() %>% 
+  mutate(value=case_when(variable=="VJA"~-log10(value),  #beräkna pH ur vätejonaktivitet
+                         TRUE~value),
+         variable=case_when(variable=="VJA"~"pH",
+                            TRUE~variable))%>%
+  nest(data = c(-Övervakningsstation, -`EU id`, -`MS_CD C3`,-variable, -`Stationskoordinat N/X`, -`Stationskoordinat E/Y`)) %>% 
+  mutate(fit = map(data, possibly(~suppressMessages(rkt(date = as.data.frame(.x)$Provtagningsår,  # tar drygt 2 minuter
+                                              block = as.data.frame(.x)$Provtagningsmånad,
+                                       y=as.data.frame(.x)$value, correct = TRUE)), otherwise=NA_real_)),
+         tidy = map(fit, possibly(~rkt_out(.x), otherwise=NA_real_))) %>% 
+  unnest(tidy) %>% 
+  dplyr::select(-data, -fit) %>% 
+  mutate(sig.stars=cut(p.value, breaks=c(1, 0.05,0.01,0.001,0.0001,0), 
+                   labels=c("ns","*","**","***","****") %>% rev, ordered_result = T),
+         p.value = p.value %>% round(4),
+         slope = slope %>% round(4), 
+         tau = tau %>% round(4)) %>% 
+         replace_na(list(sig.stars="****")) -> 
+  vattendragkemi_mannkendall1
+```
+```{r}
+vattenkemi_temp2 %>% 
+ # filter(!(variable=="Si (mg/l)" & Provtagningsår<2008))%>%
+  filter(n_years >= 10, !is.na(value)) %>% 
+  group_by(Övervakningsstation, `EU id`, `MS_CD C3`,`Stationskoordinat N/X`, `Stationskoordinat E/Y`, variable, Provtagningsår,
+           n_years) %>% 
+  summarise(value = mean(value, na.rm = T)) %>% 
+  ungroup() %>% 
+  nest(data = c(-Övervakningsstation, -`EU id`, -`MS_CD C3`,-variable, -`Stationskoordinat N/X`, -`Stationskoordinat E/Y`)) %>% 
+  mutate(fit = map(data, possibly(~suppressMessages(rkt(date = as.data.frame(.x)$Provtagningsår,  # tar drygt 2 minuter
+                                       y=as.data.frame(.x)$value, correct = TRUE)), otherwise=NA_real_)),
+         tidy = map(fit, possibly(~rkt_out(.x), otherwise=NA_real_))) %>% 
+  unnest(tidy) %>% 
+  dplyr::select(-data, -fit) %>% 
+  mutate(sig.stars=cut(p.value, breaks=c(1, 0.05,0.01,0.001,0.0001,0), 
+                   labels=c("ns","*","**","***","****") %>% rev, ordered_result = T),
+         p.value = p.value %>% round(4),
+         slope = slope %>% round(4), 
+         tau = tau %>% round(4)) %>% 
+         replace_na(list(sig.stars="****")) -> 
+  vattendragkemi_mannkendall_temp2
+```
+```{r}
+vattendragkemi_mannkendall1%>%full_join(vattendragkemi_mannkendall_temp2)->vattendragkemi_mannkendall
+```
+
+
+
+KISELALGER
+```{r}
+trendvattendrag_kiselalger <- import_slu_mvm_data_excel(here("Indata2022/Vattendrag/Vattenkemi/Trendvattendrag.xlsx"), numeric_var = 62, sheet=5, bad_quality_na = FALSE)%>%filter(Produkt=="Påväxtalger")%>%dplyr::select(1:25, 
+         IPS,
+         ACID) 
+Gotland_kiselalger <- import_slu_mvm_data_excel(here("Indata2022/Vattendrag/Vattenkemi/RMÖ Gotland.xlsx"), numeric_var = 62, sheet=5, bad_quality_na = FALSE)%>%filter(Produkt=="Påväxtalger")%>%dplyr::select(1:25, 
+         IPS,
+         ACID) 
+ikeuvattendrag_kiselalger <- import_slu_mvm_data_excel(here("Indata2022/Vattendrag/Vattenkemi/IKEU vdr.xlsx"), numeric_var = 62, sheet=5,bad_quality_na = FALSE)%>%filter(Produkt=="Påväxtalger")%>%dplyr::select(1:25, 
+         IPS,
+         ACID) 
+
+
+kiselalger_vattendrag<-bind_rows(trendvattendrag_kiselalger, ikeuvattendrag_kiselalger, Gotland_kiselalger)%>%
+mutate(Övervakningsstation=case_when(Övervakningsstation=="Skuggälven Ängarna"~"Skuggälven",
+                                       Övervakningsstation=="Storselsån Storsele"~"Storselsån",
+                                       Övervakningsstation=="Arån Arålund"~"Arån",
+                                       Övervakningsstation=="Härån (Storån)"~"Härån",
+                                       Övervakningsstation=="Sörjabäcken (Lillån)"~"Sörjabäcken",
+                                       Övervakningsstation=="Enån, nedan sågen"~"Enån",
+                                       Övervakningsstation=="Lillån, E4:an"~"Lillån",
+                                       Övervakningsstation=="Stridbäcken, E4:an"~"Stridbäcken",
+                                       Övervakningsstation=="Svanån, vid vägen"~"Svanån",
+                                       Övervakningsstation=="Vingån, Vingäng"~"Vingån",
+                                       Övervakningsstation=="Blankan Ryerna"~"Blankan",
+                                       Övervakningsstation=="Hästgångsån Hästgången"~"Hästgångsån",
+                                       Övervakningsstation=="Källsjöån Källsjöklack"~"Källsjöån",
+                                       TRUE~Övervakningsstation))%>%
+  mutate(`EU id`=case_when(Övervakningsstation=="Verkaån, Skepparp"~"00206365",
+                           TRUE~`EU id`))%>%
+    mutate(`EU id`=case_when(`EU id`=="SE699972-140367"~"SE700012-140354", #Bastuån
+                           `EU id`=="SE627432-134607"~"SE627958-134477", #*Blankan
+                           `EU id`=="SE638300-141085"~"SE638561-141289", #Hästgången
+                           `EU id`=="SE683563-155010"~"SE683537-155138", #Källsjöån
+                           `EU id`=="SE663718-148037"~"SE663532-523976", #Laxbäcken
+                           `EU id`=="SE654141-124734"~"SE654022-124861", #Skuggälven
+                           `EU id`=="SE707195-161570"~"SE707204-161537", #STorselsån
+                           `EU id`=="SE697805-139065"~"SE697717-139085", #Arån
+                           `EU id`=="SE684705-153450"~"SE684404-578511", #Härån
+                           `EU id`=="SE697145-157980"~"SE697231-157849", #Hornsjöbäcken
+                           `EU id`=="SE631840-133310"~"SE631375-379389", #Lillån-Bosgårdsån
+                           `EU id`=="SE673815-153365"~"SE673813-153174", #Sörjabäcken
+                           `EU id`=="SE664307-137031"~"SE664297-136937", #Enån
+                           `EU id`=="SE688278-138278"~"SE688271-138240", #Hammarbäcken
+                           `EU id`=="SE706025-169395"~"SE706176-733260", #Lillån
+                           `EU id`=="SE704640-167395"~"SE704792-167352", #Stridån
+                           `EU id`=="SE638475-137575"~"SE639042-138349", #Svanån
+                           `EU id`=="SE673341-134207"~"SE673303-133869", #Vingån
+                           TRUE~`EU id`))
+last_year<-2021
+
+
+
+trendvattendrag_index <- import_slu_mvm_data_excel(here("Indata2022/Vattendrag/Vattenkemi/Trendvattendrag.xlsx"), numeric_var = 36, sheet=5, bad_quality_na = FALSE)%>%filter(Produkt=="Bottenfauna")%>%dplyr::select(1:25, 
+         ASPT,
+         MISA,
+         DJ) 
+
+
+ikeuvattendrag_index <- import_slu_mvm_data_excel(here("Indata2022/Vattendrag/Vattenkemi/IKEU vdr.xlsx"), numeric_var = 36, sheet=5, bad_quality_na = FALSE)%>%filter(Produkt=="Bottenfauna")%>%dplyr::select(1:25, 
+         ASPT,
+         MISA,
+         DJ) 
+
+
+Gotland_index <- import_slu_mvm_data_excel(here("Indata2022/Vattendrag/Vattenkemi/RMÖ Gotland.xlsx"), numeric_var = 36, sheet=5, bad_quality_na = FALSE)%>%filter(Produkt=="Bottenfauna")%>%dplyr::select(1:25, 
+         ASPT,
+         MISA,
+         DJ) 
+index_vattendrag<-bind_rows(trendvattendrag_index, ikeuvattendrag_index, Gotland_index)%>%
+  mutate(Övervakningsstation=case_when(Övervakningsstation=="Skuggälven Ängarna"~"Skuggälven",
+                                       Övervakningsstation=="Storselsån Storsele"~"Storselsån",
+                                       Övervakningsstation=="Arån Arålund"~"Arån",
+                                       Övervakningsstation=="Härån (Storån)"~"Härån",
+                                       Övervakningsstation=="Sörjabäcken (Lillån)"~"Sörjabäcken",
+                                       Övervakningsstation=="Enån, nedan sågen"~"Enån",
+                                       Övervakningsstation=="Lillån, E4:an"~"Lillån",
+                                       Övervakningsstation=="Stridbäcken, E4:an"~"Stridbäcken",
+                                       Övervakningsstation=="Svanån, vid vägen"~"Svanån",
+                                       Övervakningsstation=="Vingån, Vingäng"~"Vingån",
+                                       Övervakningsstation=="Blankan Ryerna"~"Blankan",
+                                       Övervakningsstation=="Hästgångsån Hästgången"~"Hästgångsån",
+                                       Övervakningsstation=="Källsjöån Källsjöklack"~"Källsjöån",
+                                       TRUE~Övervakningsstation))%>%
+  mutate(`EU id`=case_when(Övervakningsstation=="Verkaån, Skepparp"~"00206365",
+                           TRUE~`EU id`))%>%
+    mutate(`EU id`=case_when(`EU id`=="SE699972-140367"~"SE700012-140354", #Bastuån
+                           `EU id`=="SE627432-134607"~"SE627958-134477", #*Blankan
+                           `EU id`=="SE638300-141085"~"SE638561-141289", #Hästgången
+                           `EU id`=="SE683563-155010"~"SE683537-155138", #Källsjöån
+                           `EU id`=="SE663718-148037"~"SE663532-523976", #Laxbäcken
+                           `EU id`=="SE654141-124734"~"SE654022-124861", #Skuggälven
+                           `EU id`=="SE707195-161570"~"SE707204-161537", #STorselsån
+                           `EU id`=="SE697805-139065"~"SE697717-139085", #Arån
+                           `EU id`=="SE684705-153450"~"SE684404-578511", #Härån
+                           `EU id`=="SE697145-157980"~"SE697231-157849", #Hornsjöbäcken
+                           `EU id`=="SE631840-133310"~"SE631375-379389", #Lillån-Bosgårdsån
+                           `EU id`=="SE673815-153365"~"SE673813-153174", #Sörjabäcken
+                           `EU id`=="SE664307-137031"~"SE664297-136937", #Enån
+                           `EU id`=="SE688278-138278"~"SE688271-138240", #Hammarbäcken
+                           `EU id`=="SE706025-169395"~"SE706176-733260", #Lillån
+                           `EU id`=="SE704640-167395"~"SE704792-167352", #Stridån
+                           `EU id`=="SE638475-137575"~"SE639042-138349", #Svanån
+                           `EU id`=="SE673341-134207"~"SE673303-133869", #Vingån
+                           TRUE~`EU id`))
+last_year<-2021
+```
+
+```{r}
+ka_index_vattendrag<-bind_rows(kiselalger_vattendrag, index_vattendrag)
+```
+
+
+
+```{r}
+ka_index_vattendrag %>% 
+ 
+  filter(!is.na(`EU id`))%>%
+  as_tibble() %>% 
+  gather(variable, value, 26:(ncol(.)), na.rm = T) %>% 
+  group_by(Övervakningsstation, `EU id`, `MS_CD C3`,`Stationskoordinat N/X`, `Stationskoordinat E/Y`, variable, .add=FALSE) %>% 
+  periods(Provtagningsår, filter_less_than = 10) %>% 
+    mutate(n_years = n_distinct(Provtagningsår, na.rm = TRUE), max_year = max(Provtagningsår)) %>% 
+  filter(max_year >= 2015, Provtagningsår<=last_year) %>% 
+  ungroup() ->
+  trendvattendrag_kiselalger_data
+
+```
+
+
+```{r}
+trendvattendrag_kiselalger_data %>% 
+  group_by(Övervakningsstation, `EU id`, `MS_CD C3`, `Stationskoordinat N/X`, `Stationskoordinat E/Y`, variable, Provtagningsår, Provtagningsmånad,
+           n_years) %>% 
+  summarise(value = mean(value, na.rm = T),
+            n = n()) %>% 
+  ungroup() %>%
+  group_by(Övervakningsstation, `EU id`, `MS_CD C3`,`Stationskoordinat N/X`, `Stationskoordinat E/Y`, variable, Provtagningsår, n_years) %>% 
+  summarise(value = mean(value, na.rm = T),
+            n = sum(n)) %>% 
+  ungroup() %>% 
+  ####### Ta säsongsmedelvärden, sen årsmedelvärden på det
+  arrange(Övervakningsstation, `EU id`, `MS_CD C3`,`Stationskoordinat N/X`, `Stationskoordinat E/Y`, variable, Provtagningsår) %>% 
+    nest(data = c(-Övervakningsstation, -`EU id`, -`MS_CD C3`, -`Stationskoordinat N/X`, -`Stationskoordinat E/Y`, -variable)) %>% 
+    mutate(fit = future_map(data, 
+                            possibly(~ gam(formula = value ~ s(Provtagningsår, k=n_distinct(.x %>% filter(!is.na(value)) %>% .$Provtagningsår)-2),
+                                data = .x, 
+                                method="REML", select=T
+                                ), otherwise = NA_real_), .progress = T)) %>% 
+  mutate(trend = map2(fit, data, possibly(~ predict.gam(object = .x, newdata = .y, type="response"), otherwise = NA_real_), .progress = TRUE)) %>% 
+  unnest(c(data, trend)) ->
+  gam_models_vattendrag_kiselalger
+  gam_models_vattendrag_kiselalger$trend = gam_models_vattendrag_kiselalger$trend %>% as.vector() 
+```
+
+```{r}
+trendvattendrag_kiselalger_data %>% 
+ # filter(!(variable=="Si (mg/l)" & Provtagningsår<2008))%>%
+  filter(n_years >= 10, !is.na(value)) %>% 
+  group_by(Övervakningsstation, `EU id`, `MS_CD C3`, `Stationskoordinat N/X`, `Stationskoordinat E/Y`, variable, Provtagningsår, Provtagningsmånad,
+           n_years) %>% 
+  summarise(value = mean(value, na.rm = T)) %>% 
+  ungroup() %>% 
+  nest(data = c(-Övervakningsstation, -`EU id`, -`MS_CD C3`, -variable, -`Stationskoordinat N/X`, -`Stationskoordinat E/Y`)) %>% 
+  mutate(fit = map(data, possibly(~suppressMessages(rkt(date = as.data.frame(.x)$Provtagningsår,  # tar drygt 2 minuter
+                                              block = as.data.frame(.x)$Provtagningsmånad,
+                                       y=as.data.frame(.x)$value, correct = TRUE)), otherwise=NA_real_)),
+         tidy = map(fit, possibly(~rkt_out(.x), otherwise=NA_real_))) %>% 
+  unnest(tidy) %>% 
+  dplyr::select(-data, -fit) %>% 
+  mutate(sig.stars=cut(p.value, breaks=c(1, 0.05,0.01,0.001,0.0001,0), 
+                   labels=c("ns","*","**","***","****") %>% rev, ordered_result = T),
+         p.value = p.value %>% round(4),
+         slope = slope %>% round(4), 
+         tau = tau %>% round(4)) %>% 
+         replace_na(list(sig.stars="****")) -> 
+  vattendrag_kiselalger_mannkendall
+```
+
+
+
+
+<!-- ```{r echo=FALSE, fig.height=25, fig.width=20, message=FALSE, warning=FALSE} -->
+<!-- gam_models_vattendrag_kemi %>% -->
+<!--   filter(variable == "Vattentemperatur (°C)") %>% -->
+<!--   ggplot(aes(x=Provtagningsår, y=value))+ -->
+<!--   geom_line(linetype="dashed")+ -->
+<!--   facet_wrap(~paste(Övervakningsstation, "\r\n",`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y", ncol = 8)+ -->
+<!--   geom_line(aes(y=trend), linetype="solid")+ -->
+<!--   labs(title="Vattentemperatur") -->
+<!-- ``` -->
+
+<!-- ## Cd -->
+<!-- ```{r echo=FALSE, fig.height=25, fig.width=20, message=FALSE, warning=FALSE} -->
+<!-- gam_models_vattendrag_kiselalger %>%  -->
+<!--   filter(variable == "Cd (µg/l)") %>%  -->
+<!--   ggplot(aes(x=Provtagningsår, y=value))+ -->
+<!--   geom_line(linetype="dashed")+ -->
+<!--   facet_wrap(~paste(Övervakningsstation, "\r\n",`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y", ncol = 8)+ -->
+<!--   geom_line(aes(y=trend), linetype="solid")+ -->
+<!--   labs(title="Cd (µg/l)") -->
+<!-- ``` -->
+<!-- ## Hg -->
+<!-- ```{r echo=FALSE, fig.height=25, fig.width=20, message=FALSE, warning=FALSE} -->
+<!-- gam_models_vattendrag_kemi %>%  -->
+<!--   filter(variable == "Hg (ng/l)") %>%  -->
+<!--   ggplot(aes(x=Provtagningsår, y=value))+ -->
+<!--   geom_line(linetype="dashed")+ -->
+<!--   facet_wrap(~paste(Övervakningsstation, "\r\n",`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y", ncol = 8)+ -->
+<!--   geom_line(aes(y=trend), linetype="solid")+ -->
+<!--   labs(title="Hg (ng/l)") -->
+<!-- ``` -->
+
+<!-- ## Pb -->
+<!-- ```{r echo=FALSE, fig.height=25, fig.width=20, message=FALSE, warning=FALSE} -->
+<!-- gam_models_vattendrag_kemi %>%  -->
+<!--   filter(variable == "Pb (µg/l)") %>%  -->
+<!--   ggplot(aes(x=Provtagningsår, y=value))+ -->
+<!--   geom_line(linetype="dashed")+ -->
+<!--   facet_wrap(~paste(Övervakningsstation, "\r\n",`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y", ncol = 8)+ -->
+<!--   geom_line(aes(y=trend), linetype="solid")+ -->
+<!--   labs(title="Pb (µg/l)") -->
+<!-- ``` -->
+
+<!-- ## Ni -->
+<!-- ```{r echo=FALSE, fig.height=25, fig.width=20, message=FALSE, warning=FALSE} -->
+<!-- gam_models_vattendrag_kemi %>%  -->
+<!--   filter(variable == "Ni (µg/l)") %>%  -->
+<!--   ggplot(aes(x=Provtagningsår, y=value))+ -->
+<!--   geom_line(linetype="dashed")+ -->
+<!--   facet_wrap(~paste(Övervakningsstation, "\r\n",`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y", ncol = 8)+ -->
+<!--   geom_line(aes(y=trend), linetype="solid")+ -->
+<!--   labs(title="Ni (µg/l)") -->
+<!-- ``` -->
+
+
+<!-- ## Oorganiskt N -->
+
+<!-- ```{r echo=FALSE, fig.height=25, fig.width=20, message=FALSE, warning=FALSE, include=FALSE} -->
+<!-- gam_models_vattendrag_kemi %>%  -->
+<!--   filter(variable == "Oorganiskt N (µg/l)") %>%  -->
+<!--   ggplot(aes(x=Provtagningsår, y=value))+ -->
+<!--   geom_line(linetype="dashed")+ -->
+<!--   facet_wrap(~paste(Övervakningsstation, "\r\n",`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y", ncol = 8)+ -->
+<!--   geom_line(aes(y=trend), linetype="solid")+ -->
+<!--   labs(title="NH4-N (µg/l)") -->
+<!-- ``` -->
+
+<!-- ## Tot-N (µg/l) -->
+
+<!-- ```{r echo=FALSE, fig.height=25, fig.width=20, message=FALSE, warning=FALSE, include=FALSE} -->
+<!-- gam_models_vattendrag_kemi %>%  -->
+<!--   filter(variable == "Tot-N (µg/l)") %>%  -->
+<!--   ggplot(aes(x=Provtagningsår, y=value))+ -->
+<!--   geom_line(linetype="dashed")+ -->
+<!--   facet_wrap(~paste(Övervakningsstation, "\r\n",`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y", ncol = 8)+ -->
+<!--   geom_line(aes(y=trend), linetype="solid")+ -->
+<!--   labs(title="Tot-N_ps (µg/l)") -->
+<!-- ``` -->
+
+<!-- ## Tot-P (µg/l) -->
+
+<!-- ```{r echo=FALSE, fig.height=25, fig.width=20, message=FALSE, warning=FALSE} -->
+<!-- gam_models_vattendrag_kemi %>%  -->
+<!--   filter(variable == "Tot-P (µg/l P)") %>%  -->
+<!--   arrange(`Stationskoordinat N/X`)%>% -->
+<!--   ggplot(aes(x=Provtagningsår, y=value))+ -->
+<!--   geom_line(linetype="dashed")+ -->
+<!--   facet_wrap(~paste(`Stationskoordinat N/X`,`Stationskoordinat E/Y`, "\r\n",Övervakningsstation), scales = "free_y", ncol = 8)+ -->
+<!--   geom_line(aes(y=trend), linetype="solid")+ -->
+<!--   labs(title="Tot-P (µg/l)") -->
+<!-- ``` -->
+
+<!-- ## PO4-P (µg/l) -->
+
+<!-- ```{r echo=FALSE, fig.height=25, fig.width=20, message=FALSE, warning=FALSE, include=FALSE} -->
+
+<!-- gam_models_vattendrag_kemi %>%  -->
+<!--   filter(variable == "PO4-P (µg/l)") %>%  -->
+<!--   ggplot(aes(x=Provtagningsår, y=value))+ -->
+<!--   geom_line(linetype="dashed")+ -->
+<!--   facet_wrap(~paste(Övervakningsstation, "\r\n",`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y", ncol = 8)+ -->
+<!--   geom_line(aes(y=trend), linetype="solid")+ -->
+<!--   labs(title="PO4-P (µg/l)") -->
+<!-- ``` -->
+
+<!-- ## TOC (mg/l) -->
+
+<!-- ```{r echo=FALSE, fig.height=25, fig.width=20, message=FALSE, warning=FALSE, include=FALSE} -->
+<!-- gam_models_vattendrag_kemi %>%  -->
+<!--   filter(variable == "TOC (mg/l)") %>%  -->
+<!--   ggplot(aes(x=Provtagningsår, y=value))+ -->
+<!--   geom_line(linetype="dashed")+ -->
+<!--   facet_wrap(~paste(Övervakningsstation, "\r\n",`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y", ncol = 8)+ -->
+<!--   geom_line(aes(y=trend), linetype="solid")+ -->
+<!--   labs(title="TOC (mg/l)") -->
+<!-- ``` -->
+
+<!-- ## Alkalinitet (mekv/l) -->
+
+<!-- ```{r echo=FALSE, fig.height=25, fig.width=20, message=FALSE, warning=FALSE, include=FALSE} -->
+<!-- gam_models_vattendrag_kemi %>%  -->
+<!--   filter(variable == "Alkalinitet (mekv/l)") %>%  -->
+<!--   ggplot(aes(x=Provtagningsår, y=value))+ -->
+<!--   geom_line(linetype="dashed")+ -->
+<!--   facet_wrap(~paste(Övervakningsstation, "\r\n",`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y", ncol = 8)+ -->
+<!--   geom_line(aes(y=trend), linetype="solid")+ -->
+<!--   labs(title="Alkalinitet (mekv/l)") -->
+<!-- ``` -->
+
+<!-- ## Si (µg/l) -->
+
+<!-- ```{r echo=FALSE, fig.height=25, fig.width=20, message=FALSE, warning=FALSE, include=FALSE} -->
+<!-- gam_models_vattendrag_kemi %>%  -->
+<!--   filter(variable == "Si (µg/l)") %>%  -->
+<!--   ggplot(aes(x=Provtagningsår, y=value))+ -->
+<!--   geom_line(linetype="dashed")+ -->
+<!--   facet_wrap(~paste(Övervakningsstation, "\r\n",`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y", ncol = 8)+ -->
+<!--   geom_line(aes(y=trend), linetype="solid")+ -->
+<!--   labs(title="Si (µg/l)") -->
+<!-- ``` -->
+
+<!-- ## SO4_IC (mekv/l) -->
+
+<!-- ```{r echo=FALSE, fig.height=25, fig.width=20, message=FALSE, warning=FALSE, include=FALSE} -->
+<!-- gam_models_vattendrag_kemi %>%  -->
+<!--   filter(variable == "SO4_IC (mekv/l)") %>%  -->
+<!--   ggplot(aes(x=Provtagningsår, y=value))+ -->
+<!--   geom_line(linetype="dashed")+ -->
+<!--   facet_wrap(~paste(Övervakningsstation, "\r\n",`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y", ncol = 8)+ -->
+<!--   geom_line(aes(y=trend), linetype="solid")+ -->
+<!--   labs(title="SO4_IC (mekv/l)") -->
+<!-- ``` -->
+
+<!-- ## pH -->
+
+<!-- ```{r echo=FALSE, fig.height=25, fig.width=20, message=FALSE, warning=FALSE, include=FALSE} -->
+<!-- gam_models_vattendrag_kemi %>%  -->
+<!--   filter(variable == "pH") %>%  -->
+<!--   ggplot(aes(x=Provtagningsår, y=value))+ -->
+<!--   geom_line(linetype="dashed")+ -->
+<!--   facet_wrap(~paste(Övervakningsstation, "\r\n",`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y", ncol = 8)+ -->
+<!--   geom_line(aes(y=trend), linetype="solid")+ -->
+<!--   labs(title="pH") -->
+<!-- ``` -->
+
+<!-- ## Abs_F 420 (/5cm) -->
+
+<!-- ```{r echo=FALSE, fig.height=25, fig.width=20, message=FALSE, warning=FALSE, include=FALSE} -->
+<!-- gam_models_vattendrag_kemi %>%  -->
+<!--   filter(variable == "Abs_F 420 (/5cm)") %>%  -->
+<!--   ggplot(aes(x=Provtagningsår, y=value))+ -->
+<!--   geom_line(linetype="dashed")+ -->
+<!--   facet_wrap(~paste(Övervakningsstation, "\r\n",`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y", ncol = 8)+ -->
+<!--   geom_line(aes(y=trend), linetype="solid")+ -->
+<!--   labs(title="Abs_F 420 (/5cm)") -->
+<!-- ``` -->
+
+
+<!-- ## Temperatur -->
+<!-- ```{r echo=FALSE, fig.height=25, fig.width=20, message=FALSE, warning=FALSE, include=FALSE} -->
+<!-- gam_models_vattendrag_kemi %>%  -->
+<!--   filter(variable == "Vattentemperatur ytvatten") %>%  -->
+<!--   ggplot(aes(x=Provtagningsår, y=value))+ -->
+<!--   geom_line(linetype="dashed")+ -->
+<!--   facet_wrap(~paste(Övervakningsstation, "\r\n",`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y", ncol = 8)+ -->
+<!--   geom_line(aes(y=trend), linetype="solid")+ -->
+<!--   labs(title="Vattentemperatur ytvatten") -->
+<!-- ``` -->
+
+<!-- ## Mann-Kendall Årsmedelvärden -->
+
+<!-- ```{r echo=FALSE, message=FALSE, warning=FALSE} -->
+<!-- trendvattendrag_kemi_data %>%  -->
+<!--   filter(n_years >= 10, !is.na(value)) %>%  -->
+<!--   group_by(Övervakningsstation, `Stationskoordinat N/X`, `Stationskoordinat E/Y`, variable, Provtagningsår, Provtagningsmånad, `MD-MVM Id`, n_years) %>%  -->
+<!--   summarise(value = mean(value, na.rm = T)) %>%  -->
+<!--   ungroup() %>%  -->
+<!--   nest(data = c(-Övervakningsstation, -variable, -`Stationskoordinat N/X`, -`Stationskoordinat E/Y`, -`MD-MVM Id`)) %>%  -->
+<!--   mutate(fit = map(data, possibly(~suppressMessages(rkt(date = as.data.frame(.x)$Provtagningsår,  # tar drygt 2 minuter -->
+<!--                                               block = as.data.frame(.x)$Provtagningsmånad, -->
+<!--                                        y=as.data.frame(.x)$value, correct = TRUE)), otherwise=NA_real_)), -->
+<!--          tidy = map(fit, possibly(~rkt_out(.x), otherwise=NA_real_))) %>%  -->
+<!--   unnest(tidy) %>%  -->
+<!--   select(-data, -fit) %>%  -->
+<!--   mutate(sig.stars=cut(p.value, breaks=c(1, 0.05,0.01,0.001,0.0001,0),  -->
+<!--                    labels=c("ns","*","**","***","****") %>% rev, ordered_result = T), -->
+<!--          p.value = p.value %>% round(4), -->
+<!--          slope = slope %>% round(4),  -->
+<!--          tau = tau %>% round(4)) %>%  -->
+<!--          replace_na(list(sig.stars="****"))  %>%   -->
+<!--   datatable() -->
+<!-- ``` -->
+
+## ASPT
+# ```{r echo=FALSE, fig.height=25, fig.width=20, message=FALSE, warning=FALSE, include=FALSE}
+# gam_models_vattendrag_kiselalger %>%
+#   filter(variable == "DJ") %>%
+#   ggplot(aes(x=Provtagningsår, y=value))+
+#   geom_line(linetype="dashed")+
+#   facet_wrap(~paste(Övervakningsstation, "\r\n",`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y", ncol = 8)+
+#   geom_line(aes(y=trend), linetype="solid")+
+#   labs(title="DJ")
+# 
+# write_csv(ss, "mann-kendall_vattendrag.csv") 
+# 
+# 
+# ka_index_vattendrag%>%filter(Övervakningsstation=="Björkeredsbäcken")%>%select(Provdatum, MISA)->dd
+# 
+# ```

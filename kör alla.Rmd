@@ -1,0 +1,21 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+rmarkdown::render("sjo-vattenkemi2021.Rmd")
+rmarkdown::render("sjo vaxtplankton och index2020.Rmd")
+rmarkdown::render("Fisk2021.Rmd")
+rmarkdown::render("sjo bottenfauna 2022.Rmd")
+rmarkdown::render("Fisk_vdr2021.Rmd")
+rmarkdown::render("flodmynningar.Rmd")
+rmarkdown::render("trendvattendrag kemi och kiselalger2021.Rmd")
+rmarkdown::render("vattendrag bottenfauna 2022.Rmd")
+rmarkdown::render("exporter2021.Rmd")
+
+```

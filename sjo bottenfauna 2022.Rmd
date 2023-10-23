@@ -1,0 +1,469 @@
+---
+title: "Bottenfauna - vattendrag"
+date: "2022-03-16"
+output:
+  html_document:
+    df_print: paged
+  html_notebook: default
+  word_document: default
+---
+
+
+
+# Trendanalys
+
+```{r include=FALSE}
+#Initial inladdning av paket och egenskrivna funktioner
+source("shared_functions.R", encoding = "UTF-8")
+```
+
+
+```{r}
+tibble(dir="Indata2022/Sjöar/Vattenkemi/") %>%
+    mutate(files = map(dir, ~list.files(here(.x)))) %>%
+    unnest(files) %>%
+    transmute(path = paste0(dir, files)) %>%
+    mutate(data = map(path, ~import_slu_mvm_data_excel(here(.x), numeric_var = 32, sheet = 3, bad_quality_na =FALSE))) %>%
+    mutate(path = str_extract(basename(path), "^[^_]+(?=_)"),
+           Regionala = if_else(path %in% c("RMÖ","SRK"), 1, 0),
+           data = map2(data, Regionala, ~.x %>% mutate(Regionala = .y,
+                                                       #`Vattenzon(P,L,SP)`=`Vattenzon(P,L,SP)`%>%as.character()
+                                                       ))) %>%
+     pull(data) %>%
+    reduce(full_join) %>%
+    dplyr::select(1:30, Regionala, everything())%>%
+    filter(!(`EU id` =="SE665234-135000" |  `EU id` ==  "SE665197-135082"))%>%   #ta bort stationer från övre Fryken
+    mutate(`EU id` = case_when(`EU id` == "SE667022-134595" ~ "SE665218-134998",
+                               TRUE ~ `EU id`),
+          # Övervakningsstation=case_when(is.na(Övervakningsstation)~Övervakningsstation,
+          #                        TRUE~Övervakningsstation),
+           Övervakningsstation = case_when(Övervakningsstation == "Övre Fryken, 50 m söder om fiskodling" ~ "Övre Fryken",
+                                    Övervakningsstation =="Övre Fryken, Torsby" ~"Övre Fryken",
+                                    Övervakningsstation == "Stora Skärsjön" ~ "St Skärsjön",
+                                    Övervakningsstation == "Värmullen, norra viken" ~ "Värmullen",
+                                    TRUE ~ Övervakningsstation),
+           `Stationskoordinat N/X`= case_when (`Stationskoordinat N/X`== 6666576 ~ 6648600,
+                                               TRUE ~ `Stationskoordinat N/X`),
+           `Stationskoordinat E/Y` =case_when (`Stationskoordinat E/Y`== 390739 ~394983,
+                                                  TRUE ~ `Stationskoordinat E/Y`))%>%
+   mutate(
+      `EU id` = case_when(
+        `EU id` == "SE655587-158869" ~ "SE655605-158820", # Stora Envättern   dessa tre från fisk eftersom de finns med i VISS
+        `EU id` == "SE656419-164404" ~ "SE656515-164330", # Stensjön
+        `EU id` == "SE656590-164240" ~ "SE656640-164224", # Längsjön" SE655275-153234"~ "NW655349-153274",  #Älgsjön
+        `EU id` == "SE656612-164132" ~ "SE656574-164098", # Årsjön
+        `EU id` == "SE627443-149526" ~ "NW627437-149509", # Brunnsjön
+        `EU id` == "SE653737-125017" ~ "NW653647-125036", # Ejgdesjön
+        `EU id` == "SE645289-128665" ~ "NW645343-128665", # Fräcksjön
+        `EU id` == "SE649314-149514" ~ "NW649253-149503", # Geten
+        `EU id` == "SE633209-141991" ~ "NW633246-141963", # Gyslättasjön
+        `EU id` == "SE643914-127698" ~ "NW643960-127717", # Härsvatten
+        `EU id` == "SE683582-154935" ~ "NW683582-154935", # Källsjön
+        `EU id` == "SE656640-164224" ~ "SE656590-164240", # Längsjön
+        `EU id` == "SE662682-132860" ~ "SE656590-164240", # Örvattnet
+        `EU id` == "SE674570-141911" ~ "NW674570-141911", # Rådsjön
+        `EU id` == "SE652902-125783" ~ "NW652888-125811", # Rotehogstjärnen
+        `EU id` == "SE666268-142230" ~ "NW666191-142252", # Skifsen
+        `EU id` == "SE656515-164330" ~ "SE656419-164404", # Stensjön
+        `EU id` == "SE664620-148590" ~ "NW664611-148550", # Västa Skälsjön
+        TRUE ~ `EU id`
+      ),
+      `MS_CD C3` = case_when(
+        `EU id` == "SE656612-164132" ~ "WA17355956", # Årsjön
+        `EU id` == "SE649314-149514" ~ "WA74940653", # Geten
+        `EU id` == "SE683582-154935" ~ "WA29887255", # Källsjön
+        `EU id` == "SE674570-141911" ~ "WA24280365", # Rådsjön
+        `EU id` == "SE666268-142230" ~ "WA70203019", # Skifsen
+        TRUE ~ `MS_CD C3`
+      ),
+      Övervakningsstation = case_when(
+        Övervakningsstation == "V. Skälsjön" ~ "Västra Skälsjön",
+        Övervakningsstation == "Stora Skärsjön" ~ "St Skärsjön",
+        Övervakningsstation == "Värmullen, norra viken" ~ "Värmullen",
+        TRUE ~ Övervakningsstation
+      ))->
+sjo_bottenfauna
+  
+```
+Observera: för kräftdjur finns enbart Malacostraca och Branchiura, borde vara Anostraca, Branchiura, Malacostraca, Notostraca
+
+```{r }
+sjo_bottenfauna %>% 
+  dplyr::select(1:ProvId, 
+         Regionala, 
+         Provtagningsår, 
+         Provtagningsmånad,
+         `Vattenzon(P,L,SP)`,
+         `Max provdjup (m)`, 
+         `Araneae (Antal/m2)`:`Övriga Bottenfauna (Antal/prov)`) %>% 
+  rowwise()%>%
+  mutate(`Individtäthet blötdjur - litoral`=sum(`Bivalvia (Antal/prov)`,`Gastropoda (Antal/prov)`, na.rm=TRUE),
+         `Individtäthet ringmaskar - litoral`= sum(`Hirudinea (Antal/prov)`, `Oligochaeta (Antal/prov)`, na.rm=TRUE),
+         `Individtäthet leddjur - insekter - litoral`=sum(`Coleoptera (Antal/prov)`,`Diptera (Antal/prov)`, `Ephemeroptera (Antal/prov)`,
+                                                `Hemiptera (Antal/prov)`,`Lepidoptera (Antal/prov)`, `Megaloptera (Antal/prov)`,
+                                                `Neuroptera (Antal/prov)`, `Odonata (Antal/prov)`, `Plecoptera (Antal/prov)`,
+                                                `Trichoptera (Antal/prov)`, na.rm=TRUE),
+         `Individtäthet leddjur - kräftdjur - litoral`=sum(`Malacostraca (Antal/prov)`, `Branchiura (Antal/prov)`,na.rm=TRUE),
+         `Individtäthet alla bottendjur - litoral`= sum(c_across(contains("Antal/prov)")), na.rm=TRUE),
+         `Totala biomassa`=sum(c_across(contains("(g/m2)")),na.rm=TRUE),
+         `Biomassa blötdjur`=sum(`Bivalvia (g/m2)`,`Gastropoda (g/m2)`, na.rm=TRUE),
+         `Biomassa ringmaskar`= sum(`Hirudinea (g/m2)`, `Oligochaeta (g/m2)`, na.rm=TRUE),
+         `Biomassa leddjur - insekter`= sum(`Coleoptera (g/m2)`,`Diptera (g/m2)`, `Ephemeroptera (g/m2)`,
+                                                `Hemiptera (g/m2)`,`Lepidoptera (g/m2)`, `Megaloptera (g/m2)`,
+                                                `Odonata (g/m2)`, `Plecoptera (g/m2)`,
+                                                `Trichoptera (g/m2)`, na.rm=TRUE),
+         `Biomassa leddjur - kräftdjur`= sum(`Malacostraca (g/m2)`, na.rm=TRUE),
+         `Individtäthet blötdjur - profundal`=sum(`Bivalvia (Antal/m2)`,`Gastropoda (Antal/m2)`, na.rm=TRUE),
+         `Individtäthet ringmaskar - profundal`=sum(`Hirudinea (Antal/m2)`, `Oligochaeta (Antal/m2)`, na.rm=TRUE),
+         `Individtäthet leddjur - insekter - profundal`=sum(`Coleoptera (Antal/m2)`,`Diptera (Antal/m2)`, `Ephemeroptera (Antal/m2)`,
+                                                `Hemiptera (Antal/m2)`,`Lepidoptera (Antal/m2)`, `Megaloptera (Antal/m2)`,
+                                                 `Odonata (Antal/m2)`, `Plecoptera (Antal/m2)`,
+                                                `Trichoptera (Antal/m2)`, na.rm=TRUE),
+         `Individtäthet leddjur - kräftdjur - profundal`= sum(`Malacostraca (Antal/m2)`, na.rm=TRUE),
+         `Individtäthet alla bottendjur - profundal`= sum(c_across(contains("(Antal/m2)")), na.rm=TRUE))%>%
+  gather(variable, value, `Individtäthet blötdjur - litoral` :`Individtäthet alla bottendjur - profundal`, na.rm = T) %>% 
+#  mutate(value = ifelse(variable=="Kfyll (µg/l)"&`Max provdjup (m)`>2, NA_real_, value)) %>% # set Kfyll values for maximum sample depth more than 2 meter to NA
+  drop_na(value) %>% # remove rows with NAs
+  dplyr::select(-`Max provdjup (m)`) %>% 
+ # filter((variable %in% c("Kfyll (µg/l)",  "Biovolym (mm3/l)", "Cyanobacteria (mm3/l)")
+#         & Provtagningsmånad %in% c(7,8)) | # select values from July and August 
+#          (variable %in%  c("BQI", "IPS", "ACID", "ASPT", "MILA 2018") & Provtagningsmånad %in% c(9,10,11)))%>%
+  #select autumn values for indiced
+  group_by(Övervakningsstation, `MD-MVM Id`, `EU id`,  `MS_CD C3`,`Stationskoordinat N/X`, `Stationskoordinat E/Y`, Provtagningsår, variable, Regionala) %>% 
+  summarise(value = value %>% mean(), # calculate yearly mean
+            n = n()) %>% 
+  ungroup() %>% 
+  distinct() %>% 
+  group_by(Övervakningsstation, `EU id`, `MS_CD C3`, `Stationskoordinat N/X`, `Stationskoordinat E/Y`, variable) %>% 
+  periods(variable =Provtagningsår, filter_less_than = 10, max_year=2017) %>%
+  mutate(n_years=n(), max_year = max(Provtagningsår)) %>%
+  filter(max_year >= 2015) %>% 
+  ungroup() ->bottenfauna_data_sjo
+```
+
+
+```{r include=FALSE}
+#group_by(Övervakningsstation, `Stationskoordinat N/X`, `Stationskoordinat E/Y`, variable, Regionala)# %>%
+ # summarise(n_years = min(n_years)) %>% View
+bottenfauna_data_sjo%>%
+  nest(data=c(-Övervakningsstation, -`EU id`, -`MS_CD C3`, -`Stationskoordinat N/X`, -`Stationskoordinat E/Y`, -variable))%>% 
+  mutate(fit = future_map(data, ~if(var(.x$value)==0){glm(formula=value~Provtagningsår, data=.x)}else{
+                           # gam(formula = value ~ s(Provtagningsår, k=unique(.x$n_years-2)),
+                              gam(formula = value ~ s(Provtagningsår, k=unique(floor(.x$n_years/2))),
+                              data=.x, 
+                              method="REML", select=T,                        )}, .progress=T),
+          trend = map2(fit, data, ~ predict(object = .x, newdata = .y, type="response")),
+          resid = map(fit, ~resid(.x, type="pearson"))) %>% 
+  unnest(c(data, trend, resid)) %>% 
+  gather(type, value, value, trend) ->
+  sjo_trends_bottenfauna
+```
+
+```{r include=FALSE}
+sjo_trends_bottenfauna%>% 
+  filter(type=="value") %>% 
+  nest(data = c(-Övervakningsstation, -`EU id`, -`MS_CD C3`, -`Stationskoordinat N/X`, -`Stationskoordinat E/Y`,-Regionala,-variable)) %>% 
+  mutate(fit = map(data, possibly(~rkt(date=as.data.frame(.x)$Provtagningsår, 
+                                       y=as.data.frame(.x)$value), otherwise=NA_real_)),
+         tidy = map(fit, possibly(~rkt_out(.x), otherwise=NA_real_))) %>% 
+  unnest(tidy) %>% 
+  dplyr::select(-data, -fit) %>% 
+  mutate(sig.stars=cut(p.value, breaks=c(1, 0.05,0.01,0.001,0.0001,0), 
+                       labels=c("ns","*","**","***","****") %>% rev, ordered_result = T),
+         p.value = p.value %>% round(4),
+         slope = slope %>% round(4), 
+         tau = tau %>% round(4)) %>% 
+  replace_na(list(sig.stars="****")) -> 
+ sjo_bottenfauna_mannkendall
+```
+
+För samtliga variabler ser processen ut som följer:
+
+ * Värden från juli och augusti filtreras ut
+ * Eventuell variabelspecifik filtrering (se klorofyll)
+ * Medelvärdesberäkning för varje år för varje station
+ * Beräkning av antal inom varje år för varje station
+ * Beräkning av antal år för station
+ * Bortfiltrering av enstaka mätpunkter som befinner sig mer än 3 år ifrån någon annan mätpunkt i tid
+ * Bortfiltrering av stationer med färre än 10 årsmedelvärden
+ * (Varje delperiod ska ha >=10 års värden)
+ * En robust additiv modell anpassas för varje stations återstående årsmedelvärden för att skatta trend över tid
+ * Årsmedelvärden och trenden plottas ihop med outlierbedömning (standardiserad residual större än 2)
+ 
+
+<!-- ```{r} -->
+<!-- write_excel_csv(sjo_bottenfauna_mannkendall, "bottenfauna_mannkendall2.csv") -->
+<!-- ``` -->
+
+
+<!-- ### `Individtäthet blötdjur - litoral` -->
+
+<!-- ```{r echo=FALSE, fig.height=20, fig.width=20, message=FALSE, warning=FALSE, out.extra='angle=90'} -->
+<!--  sjo_trends_bottenfauna %>% -->
+<!--   filter(variable=="Individtäthet blötdjur - litoral") %>% -->
+<!--   ggplot(aes(x = Provtagningsår, y = value, group = type, linetype = type, color = type)) + -->
+<!--   geom_line() + -->
+<!--   facet_wrap(~Övervakningsstation+paste(`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y")+ -->
+<!--    scale_linetype_manual(values = c("value" = "dashed", "trend" = "solid"), -->
+<!--                         labels = c("Medelvärden", "Trendvärden"))+ -->
+<!--   scale_color_manual(values = c("value" = "blue", "trend" = "red"), -->
+<!--                         labels = c("Medelvärden", "Trendvärden"))+ -->
+<!--  # geom_point(data = trends %>% -->
+<!--  #filter(variable=="Biovolym (mm3/l)",outlier==T), aes(group=NULL, color=NULL), color="red")+ -->
+<!--   labs(y="Mätvärden", color="Tidsserie",linetype = "Tidsserie", x="Provtagningsår") -->
+<!-- ``` -->
+
+<!-- "Individtäthet ringmaskar" Paginated -->
+
+<!-- ```{r echo=FALSE, fig.height=20, fig.width=20, message=FALSE, warning=FALSE, out.extra='angle=90'} -->
+<!-- library(ggforce) -->
+<!--  sjo_trends_bottenfauna %>% -->
+<!--   filter(variable=="Individtäthet ringmaskar - litoral") %>% -->
+<!--   ggplot(aes(x = Provtagningsår, y = value, group = type, linetype = type, color = type)) + -->
+<!--   geom_line() + -->
+<!--   facet_wrap(~Övervakningsstation+paste(`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y")+ -->
+<!--    scale_linetype_manual(values = c("value" = "dashed", "trend" = "solid"), -->
+<!--                         labels = c("Medelvärden", "Trendvärden"))+ -->
+<!--   scale_color_manual(values = c("value" = "blue", "trend" = "red"), -->
+<!--                         labels = c("Medelvärden", "Trendvärden"))+ -->
+<!--  # geom_point(data = trends %>% -->
+<!--  #filter(variable=="Biovolym (mm3/l)",outlier==T), aes(group=NULL, color=NULL), color="red")+ -->
+<!--   labs(y="Mätvärden", color="Tidsserie",linetype = "Tidsserie", x="Provtagningsår") -->
+<!-- ``` -->
+
+<!-- "Individtäthet leddjur - insekter" -->
+
+<!-- ```{r echo=FALSE, fig.height=20, fig.width=20, message=FALSE, warning=FALSE, out.extra='angle=90'} -->
+<!--  sjo_trends_bottenfauna %>% -->
+<!--   filter(variable=="Individtäthet leddjur - insekter - litoral") %>% -->
+<!--   ggplot(aes(x = Provtagningsår, y = value, group = type, linetype = type, color = type)) + -->
+<!--   geom_line() + -->
+<!--   facet_wrap(~Övervakningsstation+paste(`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y")+ -->
+<!--    scale_linetype_manual(values = c("value" = "dashed", "trend" = "solid"), -->
+<!--                         labels = c("Medelvärden", "Trendvärden"))+ -->
+<!--   scale_color_manual(values = c("value" = "blue", "trend" = "red"), -->
+<!--                         labels = c("Medelvärden", "Trendvärden"))+ -->
+<!--  # geom_point(data = trends %>% -->
+<!--  #filter(variable=="Biovolym (mm3/l)",outlier==T), aes(group=NULL, color=NULL), color="red")+ -->
+<!--   labs(y="Mätvärden", color="Tidsserie",linetype = "Tidsserie", x="Provtagningsår") -->
+<!-- ``` -->
+
+<!-- "Individtäthet leddjur - kräftdjur" -->
+
+<!-- ```{r echo=FALSE, fig.height=20, fig.width=20, message=FALSE, warning=FALSE, out.extra='angle=90'} -->
+<!--  sjo_trends_bottenfauna %>% -->
+<!--   filter(variable=="Individtäthet leddjur - kräftdjur - litoral") %>% -->
+<!--   ggplot(aes(x = Provtagningsår, y = value, group = type, linetype = type, color = type)) + -->
+<!--   geom_line() + -->
+<!--   facet_wrap(~Övervakningsstation+paste(`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y")+ -->
+<!--    scale_linetype_manual(values = c("value" = "dashed", "trend" = "solid"), -->
+<!--                         labels = c("Medelvärden", "Trendvärden"))+ -->
+<!--   scale_color_manual(values = c("value" = "blue", "trend" = "red"), -->
+<!--                         labels = c("Medelvärden", "Trendvärden"))+ -->
+<!--  # geom_point(data = trends %>% -->
+<!--  #filter(variable=="Biovolym (mm3/l)",outlier==T), aes(group=NULL, color=NULL), color="red")+ -->
+<!--   labs(y="Mätvärden", color="Tidsserie",linetype = "Tidsserie", x="Provtagningsår") -->
+
+
+<!-- ``` -->
+<!-- "Individtäthet alla bottendjur" -->
+
+<!-- ```{r echo=FALSE, fig.height=20, fig.width=20, message=FALSE, warning=FALSE, out.extra='angle=90'} -->
+<!--  sjo_trends_bottenfauna %>% -->
+<!--   filter(variable=="Individtäthet alla bottendjur - litoral") %>% -->
+<!--   ggplot(aes(x = Provtagningsår, y = value, group = type, linetype = type, color = type)) + -->
+<!--   geom_line() + -->
+<!--   facet_wrap(~Övervakningsstation+paste(`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y")+ -->
+<!--    scale_linetype_manual(values = c("value" = "dashed", "trend" = "solid"), -->
+<!--                         labels = c("Medelvärden", "Trendvärden"))+ -->
+<!--   scale_color_manual(values = c("value" = "blue", "trend" = "red"), -->
+<!--                         labels = c("Medelvärden", "Trendvärden"))+ -->
+<!--  # geom_point(data = trends %>% -->
+<!--  #filter(variable=="Biovolym (mm3/l)",outlier==T), aes(group=NULL, color=NULL), color="red")+ -->
+<!--   labs(y="Mätvärden", color="Tidsserie",linetype = "Tidsserie", x="Provtagningsår") -->
+<!-- ``` -->
+
+
+
+<!-- ### `Individtäthet blötdjur - profundal` -->
+
+<!-- ```{r echo=FALSE, fig.height=20, fig.width=20, message=FALSE, warning=FALSE, out.extra='angle=90'} -->
+<!--  sjo_trends_bottenfauna %>% -->
+<!--   filter(variable=="Individtäthet blötdjur - profundal") %>% -->
+<!--   ggplot(aes(x = Provtagningsår, y = value, group = type, linetype = type, color = type)) + -->
+<!--   geom_line() + -->
+<!--   facet_wrap(~Övervakningsstation+paste(`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y")+ -->
+<!--    scale_linetype_manual(values = c("value" = "dashed", "trend" = "solid"), -->
+<!--                         labels = c("Medelvärden", "Trendvärden"))+ -->
+<!--   scale_color_manual(values = c("value" = "blue", "trend" = "red"), -->
+<!--                         labels = c("Medelvärden", "Trendvärden"))+ -->
+<!--  # geom_point(data = trends %>% -->
+<!--  #filter(variable=="Biovolym (mm3/l)",outlier==T), aes(group=NULL, color=NULL), color="red")+ -->
+<!--   labs(y="Mätvärden", color="Tidsserie",linetype = "Tidsserie", x="Provtagningsår") -->
+<!-- ``` -->
+
+<!-- "Individtäthet ringmaskar" Paginated -->
+
+<!-- ```{r echo=FALSE, fig.height=20, fig.width=20, message=FALSE, warning=FALSE, out.extra='angle=90'} -->
+<!-- library(ggforce) -->
+<!--  sjo_trends_bottenfauna %>% -->
+<!--   filter(variable=="Individtäthet ringmaskar - profundal") %>% -->
+<!--   ggplot(aes(x = Provtagningsår, y = value, group = type, linetype = type, color = type)) + -->
+<!--   geom_line() + -->
+<!--   facet_wrap(~Övervakningsstation+paste(`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y")+ -->
+<!--    scale_linetype_manual(values = c("value" = "dashed", "trend" = "solid"), -->
+<!--                         labels = c("Medelvärden", "Trendvärden"))+ -->
+<!--   scale_color_manual(values = c("value" = "blue", "trend" = "red"), -->
+<!--                         labels = c("Medelvärden", "Trendvärden"))+ -->
+<!--  # geom_point(data = trends %>% -->
+<!--  #filter(variable=="Biovolym (mm3/l)",outlier==T), aes(group=NULL, color=NULL), color="red")+ -->
+<!--   labs(y="Mätvärden", color="Tidsserie",linetype = "Tidsserie", x="Provtagningsår") -->
+<!-- ``` -->
+
+<!-- "Individtäthet leddjur - insekter" -->
+
+<!-- ```{r echo=FALSE, fig.height=20, fig.width=20, message=FALSE, warning=FALSE, out.extra='angle=90'} -->
+<!--  sjo_trends_bottenfauna %>% -->
+<!--   filter(variable=="Individtäthet leddjur - insekter - profundal") %>% -->
+<!--   ggplot(aes(x = Provtagningsår, y = value, group = type, linetype = type, color = type)) + -->
+<!--   geom_line() + -->
+<!--   facet_wrap(~Övervakningsstation+paste(`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y")+ -->
+<!--    scale_linetype_manual(values = c("value" = "dashed", "trend" = "solid"), -->
+<!--                         labels = c("Medelvärden", "Trendvärden"))+ -->
+<!--   scale_color_manual(values = c("value" = "blue", "trend" = "red"), -->
+<!--                         labels = c("Medelvärden", "Trendvärden"))+ -->
+<!--  # geom_point(data = trends %>% -->
+<!--  #filter(variable=="Biovolym (mm3/l)",outlier==T), aes(group=NULL, color=NULL), color="red")+ -->
+<!--   labs(y="Mätvärden", color="Tidsserie",linetype = "Tidsserie", x="Provtagningsår") -->
+<!-- ``` -->
+
+<!-- "Individtäthet leddjur - kräftdjur" -->
+
+<!-- ```{r echo=FALSE, fig.height=20, fig.width=20, message=FALSE, warning=FALSE, out.extra='angle=90'} -->
+<!--  sjo_trends_bottenfauna %>% -->
+<!--   filter(variable=="Individtäthet leddjur - kräftdjur - profundal") %>% -->
+<!--   ggplot(aes(x = Provtagningsår, y = value, group = type, linetype = type, color = type)) + -->
+<!--   geom_line() + -->
+<!--   facet_wrap(~Övervakningsstation+paste(`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y")+ -->
+<!--    scale_linetype_manual(values = c("value" = "dashed", "trend" = "solid"), -->
+<!--                         labels = c("Medelvärden", "Trendvärden"))+ -->
+<!--   scale_color_manual(values = c("value" = "blue", "trend" = "red"), -->
+<!--                         labels = c("Medelvärden", "Trendvärden"))+ -->
+<!--  # geom_point(data = trends %>% -->
+<!--  #filter(variable=="Biovolym (mm3/l)",outlier==T), aes(group=NULL, color=NULL), color="red")+ -->
+<!--   labs(y="Mätvärden", color="Tidsserie",linetype = "Tidsserie", x="Provtagningsår") -->
+
+
+<!-- ``` -->
+<!-- "Individtäthet alla bottendjur" -->
+
+<!-- ```{r echo=FALSE, fig.height=20, fig.width=20, message=FALSE, warning=FALSE, out.extra='angle=90'} -->
+<!--  sjo_trends_bottenfauna %>% -->
+<!--   filter(variable=="Individtäthet alla bottendjur - profundal") %>% -->
+<!--   ggplot(aes(x = Provtagningsår, y = value, group = type, linetype = type, color = type)) + -->
+<!--   geom_line() + -->
+<!--   facet_wrap(~Övervakningsstation+paste(`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y")+ -->
+<!--    scale_linetype_manual(values = c("value" = "dashed", "trend" = "solid"), -->
+<!--                         labels = c("Medelvärden", "Trendvärden"))+ -->
+<!--   scale_color_manual(values = c("value" = "blue", "trend" = "red"), -->
+<!--                         labels = c("Medelvärden", "Trendvärden"))+ -->
+<!--  # geom_point(data = trends %>% -->
+<!--  #filter(variable=="Biovolym (mm3/l)",outlier==T), aes(group=NULL, color=NULL), color="red")+ -->
+<!--   labs(y="Mätvärden", color="Tidsserie",linetype = "Tidsserie", x="Provtagningsår") -->
+<!-- ``` -->
+
+
+
+
+<!-- ### `Biomassa blötdjur ` -->
+
+<!-- ```{r echo=FALSE, fig.height=20, fig.width=20, message=FALSE, warning=FALSE, out.extra='angle=90'} -->
+<!--  sjo_trends_bottenfauna %>% -->
+<!--   filter(variable=="Biomassa blötdjur") %>% -->
+<!--   ggplot(aes(x = Provtagningsår, y = value, group = type, linetype = type, color = type)) + -->
+<!--   geom_line() + -->
+<!--   facet_wrap(~Övervakningsstation+paste(`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y")+ -->
+<!--    scale_linetype_manual(values = c("value" = "dashed", "trend" = "solid"), -->
+<!--                         labels = c("Medelvärden", "Trendvärden"))+ -->
+<!--   scale_color_manual(values = c("value" = "blue", "trend" = "red"), -->
+<!--                         labels = c("Medelvärden", "Trendvärden"))+ -->
+<!--  # geom_point(data = trends %>% -->
+<!--  #filter(variable=="Biovolym (mm3/l)",outlier==T), aes(group=NULL, color=NULL), color="red")+ -->
+<!--   labs(y="Mätvärden", color="Tidsserie",linetype = "Tidsserie", x="Provtagningsår") -->
+<!-- ``` -->
+
+<!-- " Biomassa ringmaskar" Paginated -->
+
+<!-- ```{r echo=FALSE, fig.height=20, fig.width=20, message=FALSE, warning=FALSE, out.extra='angle=90'} -->
+<!-- library(ggforce) -->
+<!--  sjo_trends_bottenfauna %>% -->
+<!--   filter(variable=="Biomassa ringmaskar") %>% -->
+<!--   ggplot(aes(x = Provtagningsår, y = value, group = type, linetype = type, color = type)) + -->
+<!--   geom_line() + -->
+<!--   facet_wrap(~Övervakningsstation+paste(`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y")+ -->
+<!--    scale_linetype_manual(values = c("value" = "dashed", "trend" = "solid"), -->
+<!--                         labels = c("Medelvärden", "Trendvärden"))+ -->
+<!--   scale_color_manual(values = c("value" = "blue", "trend" = "red"), -->
+<!--                         labels = c("Medelvärden", "Trendvärden"))+ -->
+<!--  # geom_point(data = trends %>% -->
+<!--  #filter(variable=="Biovolym (mm3/l)",outlier==T), aes(group=NULL, color=NULL), color="red")+ -->
+<!--   labs(y="Mätvärden", color="Tidsserie",linetype = "Tidsserie", x="Provtagningsår") -->
+<!-- ``` -->
+
+<!-- "Biomassa leddjur - insekter" -->
+
+<!-- ```{r echo=FALSE, fig.height=20, fig.width=20, message=FALSE, warning=FALSE, out.extra='angle=90'} -->
+<!--  sjo_trends_bottenfauna %>% -->
+<!--   filter(variable=="Biomassa leddjur - insekter") %>% -->
+<!--   ggplot(aes(x = Provtagningsår, y = value, group = type, linetype = type, color = type)) + -->
+<!--   geom_line() + -->
+<!--   facet_wrap(~Övervakningsstation+paste(`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y")+ -->
+<!--    scale_linetype_manual(values = c("value" = "dashed", "trend" = "solid"), -->
+<!--                         labels = c("Medelvärden", "Trendvärden"))+ -->
+<!--   scale_color_manual(values = c("value" = "blue", "trend" = "red"), -->
+<!--                         labels = c("Medelvärden", "Trendvärden"))+ -->
+<!--  # geom_point(data = trends %>% -->
+<!--  #filter(variable=="Biovolym (mm3/l)",outlier==T), aes(group=NULL, color=NULL), color="red")+ -->
+<!--   labs(y="Mätvärden", color="Tidsserie",linetype = "Tidsserie", x="Provtagningsår") -->
+<!-- ``` -->
+
+<!-- "Biomassa leddjur - kräftdjur" -->
+
+<!-- ```{r echo=FALSE, fig.height=20, fig.width=20, message=FALSE, warning=FALSE, out.extra='angle=90'} -->
+<!--  sjo_trends_bottenfauna %>% -->
+<!--   filter(variable=="Biomassa leddjur - kräftdjur") %>% -->
+<!--   ggplot(aes(x = Provtagningsår, y = value, group = type, linetype = type, color = type)) + -->
+<!--   geom_line() + -->
+<!--   facet_wrap(~Övervakningsstation+paste(`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y")+ -->
+<!--    scale_linetype_manual(values = c("value" = "dashed", "trend" = "solid"), -->
+<!--                         labels = c("Medelvärden", "Trendvärden"))+ -->
+<!--   scale_color_manual(values = c("value" = "blue", "trend" = "red"), -->
+<!--                         labels = c("Medelvärden", "Trendvärden"))+ -->
+<!--  # geom_point(data = trends %>% -->
+<!--  #filter(variable=="Biovolym (mm3/l)",outlier==T), aes(group=NULL, color=NULL), color="red")+ -->
+<!--   labs(y="Mätvärden", color="Tidsserie",linetype = "Tidsserie", x="Provtagningsår") -->
+
+
+<!-- ``` -->
+<!-- "Biomassa  alla bottendjur" -->
+
+<!-- ```{r echo=FALSE, fig.height=20, fig.width=20, message=FALSE, warning=FALSE, out.extra='angle=90'} -->
+<!--  sjo_trends_bottenfauna %>% -->
+<!--   filter(variable=="Totala biomassa") %>% -->
+<!--   ggplot(aes(x = Provtagningsår, y = value, group = type, linetype = type, color = type)) + -->
+<!--   geom_line() + -->
+<!--   facet_wrap(~Övervakningsstation+paste(`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y")+ -->
+<!--    scale_linetype_manual(values = c("value" = "dashed", "trend" = "solid"), -->
+<!--                         labels = c("Medelvärden", "Trendvärden"))+ -->
+<!--   scale_color_manual(values = c("value" = "blue", "trend" = "red"), -->
+<!--                         labels = c("Medelvärden", "Trendvärden"))+ -->
+<!--  # geom_point(data = trends %>% -->
+<!--  #filter(variable=="Biovolym (mm3/l)",outlier==T), aes(group=NULL, color=NULL), color="red")+ -->
+<!--   labs(y="Mätvärden", color="Tidsserie",linetype = "Tidsserie", x="Provtagningsår") -->
+<!-- ``` -->
+
+
+
+
+
+

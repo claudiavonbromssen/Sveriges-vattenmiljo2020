@@ -1,0 +1,455 @@
+---
+title: "Vattenkemi - sjöar"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+always_allow_html: true
+output:
+  html_document:
+    df_print: paged
+
+---
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#Initial inladdning av paket och egenskrivna funktioner
+source("shared_functions.R")
+```
+
+```{r, warning=FALSE}
+source("joined_dataset2021.R", encoding = "UTF-8")
+```
+
+```{r}
+last_year<-2021
+```
+
+
+
+```{r include=FALSE}
+
+
+# Importera data (.txt-filer)
+joined_dataset %>% 
+  mutate(`Cd (µg/l)`=case_when(`Cd (µg/l)`<0.005 ~0.003,
+                               TRUE ~`Cd (µg/l)`))%>%
+  dplyr::select(1:Provtagningsdag, 
+         `Min provdjup (m)` ,
+         `Max provdjup (m)` ,
+         Regionala,
+         `NO2+NO3-N (µg/l N)`,
+         `NH4-N (µg/l N)`, #Oorganiskt kväve
+         `Kjeld.-N (µg/l N)`, 
+         `Tot-N_TNb (µg/l N)`,
+         `Tot-N_ps (µg/l N)`, # Totalt kväve
+         `Tot-N (µg/l N)`,
+         `Tot-P (µg/l P)`, #Totalt fosfor
+         `PO4-P (µg/l P)`, #Fosfatfosfor
+         `TOC (mg/l C)`, # Totalt organiskt kol
+         `Alk/Acid (mekv/l)`,
+         `Alk. (mekv/l)`, #Alkalinitet
+         `Siktdjup med kikare (m)`, 
+         `Siktdjup utan kikare (m)`,
+         `Siktdjup (m)`, # Siktdjup
+         #`Si (µg/l)`, # Kisel
+         `Si (mg/l)`, 
+         `SO4_IC (mg/l S)`, #Sulfat
+         pH,
+         `Cd (µg/l)`,
+         `Pb (µg/l)`,
+         `Ni (µg/l)`,
+         `Hg (ng/l)`,
+         `Kond_25 (mS/m)`, #Konduktivitet
+         `Abs_F 420 (/5cm)`) %>% # Brunhet
+  as_tibble() %>% 
+  mutate(`Oorganiskt N (µg/l N)` = `NO2+NO3-N (µg/l N)`+`NH4-N (µg/l N)`,
+    `Tot-N_TNb (µg/l N)` = ifelse((Provtagningsår + (Provtagningsmånad-1)/12)>(2009+8/12), `Tot-N_TNb (µg/l N)`, NA),
+    `Tot-N (µg/l N)` = `Tot-N_TNb (µg/l N)` %>% 
+      coalesce(`Kjeld.-N (µg/l N)`+`NO2+NO3-N (µg/l N)`) %>% 
+      coalesce(`Tot-N_ps (µg/l N)`) %>% 
+      coalesce(`Tot-N (µg/l N)`),
+    `Alkalinitet (mekv/l)` = `Alk/Acid (mekv/l)` %>% coalesce(`Alk. (mekv/l)`),
+    `Siktdjup (m)` = `Siktdjup med kikare (m)` %>% 
+         coalesce(`Siktdjup utan kikare (m)`) %>% 
+         coalesce(`Siktdjup (m)`),
+    `Si (µg/l)` = `Si (mg/l)`*1000,
+    VJA=10^(-pH) #Vätejonaktivitet
+   ) %>% 
+  ###################################
+  #Förekommer sjöar med flera observationer på samma provdatum som skapar saknande värden, antgligen pga av bottenfauna
+#Bättre att hantera bottenfauna och vattenkemi separat istället för joined dataset.
+######################################
+  group_by(Övervakningsstation, `Stationskoordinat N/X`, `Stationskoordinat E/Y`, Provdatum) %>% 
+  filter(`Max provdjup (m)` <= 2, `Max provdjup (m)` == min(`Max provdjup (m)`)) %>%
+  ungroup() %>% # Ytligaste provet som inte är djupare än 2 meter
+    dplyr::select(1:25, 
+           Regionala,
+         `Oorganiskt N (µg/l N)`,
+         `Tot-N (µg/l N)`,
+         `Tot-P (µg/l P)`, 
+         `PO4-P (µg/l P)`, 
+         `TOC (mg/l C)`,
+         `Alkalinitet (mekv/l)`,
+         `Siktdjup (m)`,
+         `Si (µg/l)`,
+         `SO4_IC (mg/l S)`,
+         VJA,
+         `Cd (µg/l)`,
+         `Pb (µg/l)`,
+         `Ni (µg/l)`,
+         `Hg (ng/l)`,
+          `Kond_25 (mS/m)`, #Konduktivitet
+         `Abs_F 420 (/5cm)`) %>% 
+  mutate(year = ifelse(Provtagningsmånad == 12, yes = Provtagningsår+1, no=Provtagningsår),
+        season = Provtagningsmånad %>% 
+          factor() %>% 
+          fct_collapse("1" = c("1","2","12"),
+                       "2" = c("3","4","5"),
+                       "3" = c("6","7","8"),
+                       "4" = c("9","10","11")) %>% as.character() %>% 
+           parse_number()
+         ) %>% 
+  gather(variable, value, `Oorganiskt N (µg/l N)`:`Abs_F 420 (/5cm)`, na.rm = T) %>% 
+  group_by(Övervakningsstation, `Stationskoordinat N/X`, `Stationskoordinat E/Y`, Regionala, variable) %>% 
+  periods(year, filter_less_than = 10) %>% 
+  mutate(n_years = n_distinct(year, na.rm = TRUE), max_year = max(year)) %>%
+  filter(max_year >= 2015, year<=last_year) %>% 
+    ungroup() -> 
+  vattenkemi_data1
+```
+
+```{r}
+
+joined_dataset %>% 
+  dplyr::select(1:Provkommentar, 
+         Regionala,
+         `Min provdjup (m)` ,
+         `Max provdjup (m)` ,
+         `Syrgashalt (mg/l O2)`) %>% # Brunhet
+  as_tibble() %>% 
+  group_by(Övervakningsstation, `EU id`, `MS_CD C3`, `Stationskoordinat N/X`, `Stationskoordinat E/Y`, Provdatum, Regionala) %>% 
+  filter(`Max provdjup (m)` == max(`Max provdjup (m)`)) %>%
+  ungroup() %>% 
+    dplyr::select(1:25, 
+           Regionala,
+         `Syrgashalt (mg/l O2)`) %>% 
+  mutate(year = Provtagningsår)%>%
+  #       season = Provtagningsmånad %>% 
+  #         factor() %>% 
+  #         fct_collapse("1" = c("1","2","12"),
+  #                      "2" = c("3","4","5"),
+  #                      "3" = c("6","7","8"),
+  #                      "4" = c("9","10","11")) %>% as.character() %>% 
+  #          parse_number()
+  #        ) %>% 
+  group_by(Övervakningsstation, `EU id`, `MS_CD C3`, `Stationskoordinat N/X`, `Stationskoordinat E/Y`, Regionala, year)%>%
+  summarize(Min_Syrgashalt=min (`Syrgashalt (mg/l O2)`, na.rm=TRUE))%>%
+  mutate(Min_Syrgashalt=ifelse(Min_Syrgashalt==Inf, NA_real_, Min_Syrgashalt))%>%
+  gather(variable, value, Min_Syrgashalt, na.rm = T) %>% 
+  group_by(Övervakningsstation, `EU id`, `MS_CD C3`, `Stationskoordinat N/X`, `Stationskoordinat E/Y`, Regionala, variable) %>% 
+ periods(year, filter_less_than = 10, max_year=2017) %>% 
+  mutate(n_years = n_distinct(year, na.rm = TRUE), max_year = max(year)) %>%
+  filter(max_year >= 2015, year<=last_year) %>% 
+  ungroup() -> 
+  vattenkemi_data2
+```
+
+#Vattentemperatur maj. 
+#######
+#Obs ta bort observationer som inte ligger på 0.5 m för att undvika artificiella trender. Ta bort maj från vattendragen.
+########
+```{r}
+joined_dataset %>% 
+  dplyr::select(1:Provkommentar, 
+         Regionala,
+         `Min provdjup (m)` ,
+         `Max provdjup (m)` ,
+         `Vattentemperatur (°C)`) %>% # Temperatur
+    mutate(`Vattentemperatur (°C) - Maj`=case_when(Provtagningsmånad==5~`Vattentemperatur (°C)`,
+                             TRUE~NA_real_))%>%
+  as_tibble() %>% 
+  group_by(Övervakningsstation, `EU id`, `MS_CD C3`,`Stationskoordinat N/X`, `Stationskoordinat E/Y`, Provdatum) %>% 
+  filter(`Max provdjup (m)` <= 2, `Max provdjup (m)` == min(`Max provdjup (m)`)) %>%
+  ungroup() %>% # Ytligaste provet som inte är djupare än 2 meter
+    dplyr::select(1:25, 
+           Regionala,
+         `Vattentemperatur (°C) - Maj`) %>% 
+    mutate(year = ifelse(Provtagningsmånad == 12, yes = Provtagningsår+1, no=Provtagningsår),
+        season = Provtagningsmånad %>% 
+          factor() %>% 
+          fct_collapse("1" = c("1","2","12"),
+                       "2" = c("3","4","5"),
+                       "3" = c("6","7","8"),
+                       "4" = c("9","10","11")) %>% as.character() %>% 
+           parse_number()
+         ) %>% 
+  gather(variable, value, `Vattentemperatur (°C) - Maj`, na.rm = T) %>% 
+  group_by(Övervakningsstation, `Stationskoordinat N/X`, `Stationskoordinat E/Y`, variable) %>% 
+ periods(year, filter_less_than = 10, max_year=2017) %>% 
+  mutate(n_years = n_distinct(year, na.rm = TRUE), max_year = max(year)) %>%
+  filter(max_year >= 2015, year<=last_year) %>% 
+  ungroup() -> 
+  vattenkemi_data3
+```
+#Lägga till vattentemperatur i sammanslagen fil
+
+```{r}
+vattenkemi_data <- vattenkemi_data1 %>% full_join(vattenkemi_data2) %>% full_join(vattenkemi_data3)
+```
+
+
+
+```{r warning=FALSE, include=FALSE}
+vattenkemi_data %>% 
+  group_by(Övervakningsstation, `EU id`, `MS_CD C3`, `Stationskoordinat N/X`, `Stationskoordinat E/Y`,Regionala, variable, year, 
+           season, 
+           n_years) %>% 
+  summarise(value = mean(value, na.rm = T),
+            n = n()) %>% 
+  ungroup() %>%
+  group_by(Övervakningsstation, `EU id`, `MS_CD C3`, `Stationskoordinat N/X`, `Stationskoordinat E/Y`, Regionala, variable, year, 
+           n_years) %>% 
+  summarise(value = mean(value, na.rm = T),
+            n = sum(n)) %>% 
+  ungroup()  %>% 
+  mutate(value=case_when(variable=="VJA"~-log10(value),  #beräkna pH ur vätejonaktivitet
+                         TRUE~value),
+         variable=case_when(variable=="VJA"~"pH",
+                            TRUE~variable))%>%
+  ####### Ta säsongsmedelvärden, sen årsmedelvärden på det
+  arrange(Övervakningsstation, `Stationskoordinat N/X`, `Stationskoordinat E/Y`, Regionala, variable, year) %>% 
+    nest(data = c(-Övervakningsstation, -`EU id`, -`MS_CD C3`, -`Stationskoordinat N/X`, -`Stationskoordinat E/Y`, -variable, -Regionala)) %>% 
+    mutate(fit = future_map(data, 
+                            possibly(~ gam(formula = value ~ s(year, k=n_distinct(.x %>% filter(!is.na(value)) %>% .$year)-2),
+                                data = .x, 
+                                method="REML", select=T), otherwise = NA_real_), .progress = T)) %>% 
+  mutate(trend = map2(fit, data, possibly(~ predict.gam(object = .x, newdata = .y, type="response"), otherwise = NA_real_), .progress = TRUE)) %>% 
+  unnest(c(data, trend)) -> 
+  kemi_sjo_trender
+  kemi_sjo_trender$trend = kemi_sjo_trender$trend %>% as.vector()
+```
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+kemi_sjo_trender %>% 
+  filter(n_years >= 10, !is.na(value)) %>% 
+  nest(data = c(-Övervakningsstation, -`EU id`, -`MS_CD C3`, -variable, -`Stationskoordinat N/X`, -`Stationskoordinat E/Y`, -Regionala)) %>% 
+  mutate(fit = map(data, possibly(~rkt(date = as.data.frame(.x)$year, 
+                                       y=as.data.frame(.x)$value, correct = TRUE), otherwise=NA_real_)),
+         tidy = map(fit, possibly(~rkt_out(.x), otherwise=NA_real_))) %>% 
+  unnest(tidy) %>% 
+  dplyr::select(-data, -fit)  %>% 
+  mutate(sig.stars=cut(p.value, breaks=c(1, 0.05,0.01,0.001,0.0001,0), 
+                   labels=c("ns","*","**","***","****") %>% rev, ordered_result = T),
+         p.value = p.value %>% round(4),
+         slope = slope %>% signif(4), 
+         tau = tau %>% round(4)) %>% 
+         replace_na(list(sig.stars="****")) ->
+  kemi_sjo_mannkendall
+```
+
+
+## Temp Augusti
+```{r echo=FALSE, fig.height=25, fig.width=20, message=FALSE, warning=FALSE}
+kemi_sjo_trender %>% 
+  filter(variable == "Vattentemperatur (°C)") %>% 
+  ggplot(aes(x=year, y=value))+
+  geom_line(linetype="dashed")+
+  facet_wrap(~paste(Övervakningsstation, "\r\n",`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y", ncol = 8)+
+  geom_line(aes(y=trend), linetype="solid")+
+  labs(title="Vattentemperatur Maj")
+```
+
+
+
+
+
+<!-- ## Cd -->
+<!-- ```{r echo=FALSE, fig.height=25, fig.width=20, message=FALSE, warning=FALSE} -->
+<!-- kemi_sjo_trender %>%  -->
+<!--   filter(variable == "Cd (µg/l)") %>%  -->
+<!--   ggplot(aes(x=year, y=value))+ -->
+<!--   geom_line(linetype="dashed")+ -->
+<!--   facet_wrap(~paste(Stationsnamn, "\r\n",`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y", ncol = 8)+ -->
+<!--   geom_line(aes(y=trend), linetype="solid")+ -->
+<!--   labs(title="Cd (µg/l)") -->
+<!-- ``` -->
+<!-- ## Hg -->
+<!-- ```{r echo=FALSE, fig.height=25, fig.width=20, message=FALSE, warning=FALSE} -->
+<!-- kemi_sjo_trender %>%  -->
+<!--   filter(variable == "Hg (ng/l)") %>%  -->
+<!--   ggplot(aes(x=year, y=value))+ -->
+<!--   geom_line(linetype="dashed")+ -->
+<!--   facet_wrap(~paste(Stationsnamn, "\r\n",`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y", ncol = 8)+ -->
+<!--   geom_line(aes(y=trend), linetype="solid")+ -->
+<!--   labs(title="Hg (ng/l)") -->
+<!-- ``` -->
+
+<!-- ## Pb -->
+<!-- ```{r echo=FALSE, fig.height=25, fig.width=20, message=FALSE, warning=FALSE} -->
+<!-- kemi_sjo_trender %>%  -->
+<!--   filter(variable == "Pb (µg/l)") %>%  -->
+<!--   ggplot(aes(x=year, y=value))+ -->
+<!--   geom_line(linetype="dashed")+ -->
+<!--   facet_wrap(~paste(Stationsnamn, "\r\n",`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y", ncol = 8)+ -->
+<!--   geom_line(aes(y=trend), linetype="solid")+ -->
+<!--   labs(title="Pb (µg/l)") -->
+<!-- ``` -->
+
+<!-- ## Ni -->
+<!-- ```{r echo=FALSE, fig.height=25, fig.width=20, message=FALSE, warning=FALSE} -->
+<!-- kemi_sjo_trender %>%  -->
+<!--   filter(variable == "Ni (µg/l)") %>%  -->
+<!--   ggplot(aes(x=year, y=value))+ -->
+<!--   geom_line(linetype="dashed")+ -->
+<!--   facet_wrap(~paste(Stationsnamn, "\r\n",`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y", ncol = 8)+ -->
+<!--   geom_line(aes(y=trend), linetype="solid")+ -->
+<!--   labs(title="Ni (µg/l)") -->
+<!-- ``` -->
+
+
+
+
+<!-- ## Oorganiskt N -->
+<!-- ```{r echo=FALSE, fig.height=25, fig.width=20, message=FALSE, warning=FALSE, include=FALSE} -->
+<!-- kemi_sjo_trender %>%  -->
+<!--   filter(variable == "Oorganiskt N (µg/l)") %>%  -->
+<!--   ggplot(aes(x=year, y=value))+ -->
+<!--   geom_line(linetype="dashed")+ -->
+<!--   facet_wrap(~paste(Stationsnamn, "\r\n",`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y", ncol = 8)+ -->
+<!--   geom_line(aes(y=trend), linetype="solid")+ -->
+<!--   labs(title="NH4-N (µg/l)") -->
+<!-- ``` -->
+<!-- ## Temperatur -->
+
+<!-- ```{r, include=FALSE} -->
+<!-- kemi_sjo_trender %>%  -->
+<!--   filter(variable == "Vattentemperatur (°C)") %>%  -->
+<!--   ggplot(aes(x=year, y=value))+ -->
+<!--   geom_line(linetype="dashed")+ -->
+<!--   facet_wrap(~paste(Stationsnamn, "\r\n",`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y", ncol = 8)+ -->
+<!--   geom_line(aes(y=trend), linetype="solid")+ -->
+<!--   labs(title="Vattentemperatur - årsmedel") -->
+<!-- ``` -->
+
+
+
+
+<!-- ## Tot-N (µg/l) -->
+<!-- ```{r echo=FALSE, fig.height=25, fig.width=20, message=FALSE, warning=FALSE, include=FALSE} -->
+<!-- kemi_sjo_trender %>%  -->
+<!--   filter(variable == "Tot-N (µg/l)") %>%  -->
+<!--   ggplot(aes(x=year, y=value))+ -->
+<!--   geom_line(linetype="dashed")+ -->
+<!--   facet_wrap(~paste(Stationsnamn, "\r\n",`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y", ncol = 8)+ -->
+<!--   geom_line(aes(y=trend), linetype="solid")+ -->
+<!--   labs(title="Tot-N_ps (µg/l)") -->
+
+
+<!-- ``` -->
+<!-- ## Tot-P (µg/l) -->
+<!-- ```{r echo=FALSE, fig.height=25, fig.width=20, message=FALSE, warning=FALSE} -->
+<!-- kemi_sjo_trender %>%  -->
+<!--   filter(variable == "Tot-P (µg/l P)") %>%  -->
+<!--   ggplot(aes(x=year, y=value))+ -->
+<!--   geom_line(linetype="dashed")+ -->
+<!--   facet_wrap(~paste(`Stationskoordinat N/X`,`Stationskoordinat E/Y`, "\r\n",Stationsnamn), scales = "free_y", ncol = 8)+ -->
+<!--   geom_line(aes(y=trend), linetype="solid")+ -->
+<!--   labs(title="Tot-P (µg/l)") -->
+<!-- ``` -->
+
+<!-- ## PO4-P (µg/l) -->
+<!-- ```{r echo=FALSE, fig.height=25, fig.width=20, message=FALSE, warning=FALSE, include=FALSE} -->
+
+<!-- kemi_sjo_trender %>%  -->
+<!--   filter(variable == "PO4-P (µg/l P)") %>%  -->
+<!--   ggplot(aes(x=year, y=value))+ -->
+<!--   geom_line(linetype="dashed")+ -->
+<!--   facet_wrap(~paste(Stationsnamn, "\r\n",`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y", ncol = 8)+ -->
+<!--   geom_line(aes(y=trend), linetype="solid")+ -->
+<!--   labs(title="PO4-P (µg/l)") -->
+<!-- ``` -->
+
+<!-- ## TOC (mg/l) -->
+<!-- ```{r echo=FALSE, fig.height=25, fig.width=20, message=FALSE, warning=FALSE, include=FALSE} -->
+<!-- kemi_sjo_trender %>%  -->
+<!--   filter(variable == "TOC (mg/l C)") %>%  -->
+<!--   ggplot(aes(x=year, y=value))+ -->
+<!--   geom_line(linetype="dashed")+ -->
+<!--   facet_wrap(~paste(Stationsnamn, "\r\n",`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y", ncol = 8)+ -->
+<!--   geom_line(aes(y=trend), linetype="solid")+ -->
+<!--   labs(title="TOC (mg/l)") -->
+<!-- ``` -->
+<!-- ## Alkalinitet (mekv/l) -->
+<!-- ```{r echo=FALSE, fig.height=25, fig.width=20, message=FALSE, warning=FALSE, include=FALSE} -->
+<!-- kemi_sjo_trender %>%  -->
+<!--   filter(variable == "Alkalinitet (mekv/l)") %>%  -->
+<!--   ggplot(aes(x=year, y=value))+ -->
+<!--   geom_line(linetype="dashed")+ -->
+<!--   facet_wrap(~paste(Stationsnamn, "\r\n",`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y", ncol = 8)+ -->
+<!--   geom_line(aes(y=trend), linetype="solid")+ -->
+<!--   labs(title="Alkalinitet (mekv/l)") -->
+<!-- ``` -->
+<!-- ## Siktdjup (m) -->
+<!-- ```{r echo=FALSE, fig.height=25, fig.width=20, message=FALSE, warning=FALSE, include=FALSE} -->
+<!-- kemi_sjo_trender %>%  -->
+<!--   filter(variable == "Siktdjup (m)") %>%  -->
+<!--   ggplot(aes(x=year, y=value))+ -->
+<!--   geom_line(linetype="dashed")+ -->
+<!--   facet_wrap(~paste(Stationsnamn, "\r\n",`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y", ncol = 8)+ -->
+<!--   geom_line(aes(y=trend), linetype="solid")+ -->
+<!--   labs(title="Siktdjup (m)") -->
+<!-- ``` -->
+<!-- ## Temperatur -->
+<!-- ```{r echo=FALSE, fig.height=25, fig.width=20, message=FALSE, warning=FALSE, include=FALSE} -->
+<!-- kemi_sjo_trender %>%  -->
+<!--   filter(variable == "Vattentemperatur ytvatten") %>%  -->
+<!--   ggplot(aes(x=year, y=value))+ -->
+<!--   geom_line(linetype="dashed")+ -->
+<!--   facet_wrap(~paste(Stationsnamn, "\r\n",`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y", ncol = 8)+ -->
+<!--   geom_line(aes(y=trend), linetype="solid")+ -->
+<!--   labs(title="Vattentemperatur ytvatten") -->
+<!-- ``` -->
+<!-- ## Si (µg/l) -->
+<!-- ```{r echo=FALSE, fig.height=25, fig.width=20, message=FALSE, warning=FALSE, include=FALSE} -->
+<!-- kemi_sjo_trender %>%  -->
+<!--   filter(variable == "Si (µg/l)") %>%  -->
+<!--   ggplot(aes(x=year, y=value))+ -->
+<!--   geom_line(linetype="dashed")+ -->
+<!--   facet_wrap(~paste(Stationsnamn, "\r\n",`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y", ncol = 8)+ -->
+<!--   geom_line(aes(y=trend), linetype="solid")+ -->
+<!--   labs(title="Si (µg/l)") -->
+<!-- ``` -->
+<!-- ## SO4_IC (mekv/l) -->
+<!-- ```{r echo=FALSE, fig.height=25, fig.width=20, message=FALSE, warning=FALSE, include=FALSE} -->
+<!-- kemi_sjo_trender %>%  -->
+<!--   filter(variable == "SO4_IC (mekv/l)") %>%  -->
+<!--   ggplot(aes(x=year, y=value))+ -->
+<!--   geom_line(linetype="dashed")+ -->
+<!--   facet_wrap(~paste(Stationsnamn, "\r\n",`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y", ncol = 8)+ -->
+<!--   geom_line(aes(y=trend), linetype="solid")+ -->
+<!--   labs(title="SO4_IC (mekv/l)") -->
+<!-- ``` -->
+<!-- ## pH -->
+<!-- ```{r echo=FALSE, fig.height=25, fig.width=20, message=FALSE, warning=FALSE, include=FALSE} -->
+<!-- kemi_sjo_trender %>%  -->
+<!--   filter(variable == "pH") %>%  -->
+<!--   ggplot(aes(x=year, y=value))+ -->
+<!--   geom_line(linetype="dashed")+ -->
+<!--   facet_wrap(~paste(Stationsnamn, "\r\n",`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y", ncol = 8)+ -->
+<!--   geom_line(aes(y=trend), linetype="solid")+ -->
+<!--   labs(title="pH") -->
+<!-- ``` -->
+<!-- ## Abs_F 420 (/5cm) -->
+<!-- ```{r echo=FALSE, fig.height=25, fig.width=20, message=FALSE, warning=FALSE, include=FALSE} -->
+<!-- kemi_sjo_trender %>%  -->
+<!--   filter(variable == "Abs_F 420 (/5cm)") %>%  -->
+<!--   ggplot(aes(x=year, y=value))+ -->
+<!--   geom_line(linetype="dashed")+ -->
+<!--   facet_wrap(~paste(Stationsnamn, "\r\n",`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y", ncol = 8)+ -->
+<!--   geom_line(aes(y=trend), linetype="solid")+ -->
+<!--   labs(title="Abs_F 420 (/5cm)") -->
+<!-- ``` -->
+
+
+## Mann-Kendall Årsmedelvärden
+
+```{r echo=FALSE}
+kemi_sjo_mannkendall%>%filter(variable=="Vattentemperatur (°C)")%>%write_csv("Mann-Kendall_temp_aug_sjö.csv", col_names=TRUE)
+```
+

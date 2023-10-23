@@ -1,0 +1,268 @@
+---
+title: "Fiske - vattendrag"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document:
+    df_print: paged
+  html_notebook: default
+  word_document: default
+  
+---
+
+# Dataåtkomst
+
+Leverans av filer från SLU Aqua
+
+# Val av variabler
+Följande variabler används:
+
+-	Medeltäthet_Lax/100 m2 – Vattendrag lax (enhet: antal fiskar/100m2)
+-	Medeltäthet_Öring/100 m2 – Vattendrag öring (enhet: antal fiskar/100m2)
+-	Totaltäthet/100 m2	- Vattendrag totalmängd fisk (enhet: antal fiskar/100m2)
+-	Medelantal fiskarter – Vattendrag antal arter
+
+
+
+# Datarensning och databearbetning
+Ingen datarensning eller databearbetning behövs göras i skriptet i det här läget. 
+
+Alla tillgängliga år presenteras för de olika serierna.
+Serier med mindre än 10 år av data tas bort. Enstaka mätpunkter med mer än 3 år till närmaste mätpunkt tas bort.
+
+# Trendanalys
+
+```{r include=FALSE}
+#Initial inladdning av paket och egenskrivna funktioner
+source("shared_functions.R")
+```
+
+```{r include=FALSE}
+#read_csv(here("Indata2018/Fiske/FiskVattendrag.csv"), locale = locale(encoding = "ISO-8859-1")) %>%
+
+fisk_vdr<-read_xlsx(here("Indata2022/Fiske/FiskVattendrag2023.xlsx"))%>%filter(nVF==1)%>%
+  dplyr::select(-MS_CD,	-EU_CD) %>%
+left_join(read_xlsx(here("Indata2022/Fiske/StationsID_fiske_vdr.xlsx")))%>%
+  transmute(Övervakningsstation = Vdragnamn,
+            Provtagningsår = År,
+            #`Vattendrag lax` = Medeltäthet_Lax100m2,
+            `Vattendrag lax` = Lax2023,
+            #`Vattendrag öring` = Medeltäthet_Öring100m2,
+            `Vattendrag öring` = Öring2023,
+            #`Vattendrag totalmängd fisk` = Totaltäthet100m2,
+            `Vattendrag totalmängd fisk` = Totalmängd2023,
+            #`Vattendrag antal arter` = Medelantalfiskarter,
+            `Vattendrag antal arter` = Artantal2023,
+            EU_CD = case_when(EU_CD == as.character("SE673902-577077") ~ as.character("SE673809-153401"), # Björnbackån
+                      TRUE ~ as.character(EU_CD)),
+            `latitud` = XKOORVDR,
+            `longitud` = YKOORVDR,
+            MS_CD = MS_CD) %>%
+  mutate(`EU_CD` = case_when(`EU_CD` == "SE666830-151744" ~ "SE666881-151821", # 	Bjurforsbäcken
+                             `EU_CD` == "SE724171-151176" ~ "SE724097-151160", # 	Skansnäsån
+                             `EU_CD` == "SE640224-138043" ~ "SE640085-138148", # 	Helgaboån
+                             `EU_CD` == "SE723329-161534" ~ "SE723232-161455", # 	Mattjockbäcken
+                             `EU_CD` == "SE692738-153336" ~ "SE692688-153260", # 	Viskansbäcken
+                             `EU_CD` == "SE753561-165305" ~ "SE753460-165285", # 	Akkarjåkkå
+                             `EU_CD` == "SE639661-133346" ~ "SE639719-133565", # 	Lindåsabäcken
+                             `EU_CD` == "SE699392-139462" ~ "SE699780-139553", # 	Lekarån
+                             `EU_CD` == "SE737666-158035" ~ "SE737675-158280", # 	Viepsajåkkå
+                             `EU_CD` == "SE741654-169042" ~ "SE741419-169012", # 	Muddusälven
+                             `EU_CD` == "SE727831-165123" ~ "SE728070-165120", # 	Bergmyrbäcken
+                             `EU_CD` == "SE754016-181191" ~ "SE753778-181417", # 	Kitkiöjoki
+                             `EU_CD` == "SE708384-145451" ~ "SE708380-145455", # 	Hökvattsån
+                             `EU_CD` == "SE641905-137438" ~ "SE641953-137406", # 	Kolarebäcken
+                             `EU_CD` == "SE703665-153560" ~ "SE703626-153615", # 	Kvarnån
+                             `EU_CD` == "SE639676-147775" ~ "SE639020-148650", # Silverån
+                             `EU_CD` == "NW678597-137552" ~ "SE678609-137505", # Oradbäcken
+                             `EU_CD` == "SE621643-134041" ~ "SE621495-134055", # Skärån
+                             `EU_CD` == "SE659564-142727" ~ "SE659670-142700", # Trösälven
+                             `EU_CD` == "SE151-175-R" ~ "SE726075-144043", # Vapstälven
+                             `EU_CD` == "SE651218-586472" ~ "SE651360-153835", # Vretaån
+                              `EU_CD` == "SE660765-165626" ~ "SE660713-165636", # Loån
+                              `EU_CD` == "SE635694-15425" ~ "SE635805-154005", # Virån
+                              TRUE ~ `EU_CD`),
+         MS_CD=case_when(EU_CD=="SE678609-137505" ~"WA68719597", #Oradsbäcken
+                         EU_CD=="SE635805-154005" ~"WA35243626", #Virån
+                         TRUE~MS_CD),
+         Övervakningsstation=case_when(EU_CD=="SE678609-137505"~"Oradbäcken",
+                                EU_CD=="SE622950-143450" ~"Mörrumsån Mörrum",
+                                EU_CD=="SE723232-161455"~"Mattjåkkbäcken",
+                                EU_CD=="SE623006-149119"~"Lyckebyån Lyckeby",
+                                EU_CD=="SE628877-132040"~"Nissan Halmstad",
+                                EU_CD=="SE621495-134055" ~"Skärån, Skäralid",
+                                EU_CD=="SE626827-132577"~ "Smedjeån V. Mellby",
+                                EU_CD=="SE633520-153920"~"Emån Emsfors",
+                                EU_CD=="SE632033-152167"~"Alsterån Getebro",
+                                TRUE~Övervakningsstation))%>%
+  filter(!(EU_CD == "SE625524-131792" | EU_CD=="SE637884-127885"| EU_CD=="SE640656-128582" | EU_CD=="SE641209-145788" | EU_CD=="SE710716-164384" |  EU_CD=="SE711293-163997" | EU_CD=="SE710180-164899" | EU_CD=="SE710716-164384" | EU_CD=="SE710180-164899" | EU_CD=="SE708265-166557" | EU_CD=="SE708469-168092" | EU_CD=="SE708231-164032" | EU_CD=="SE709103-172517" | EU_CD=="SE710194-164428"| EU_CD=="SE713086-171962" | EU_CD=="SE714701-172111" | EU_CD=="SE715627-171605"|EU_CD=="SE700113-140449" |EU_CD=="NW683601-154634"))%>%
+  #ta bort Axelstorpsbäcken, Rolfsån, Svartåbäcken,Olstorpsbäcken, Mossavattsbäcken, Mettjärnsbäcken, Rojvättsbäcken, Klubbtjärnsbäcken, Fusbäcken, Fäbodbäcken, Hörnån, Röjdtjärnbäcken, Tavelån, Holmsjöbäcken, Risgraven, Hundsjöbäcken, Dammån, Prästvallsbäcken
+filter(!(EU_CD==""))%>%
+  #(Nolån,Bulsjöån, Havssvalgsbäcken, Norsån,  )
+  rename(`EU id`= `EU_CD`, `MS_CD C3`= MS_CD)
+
+```
+
+
+```{r include=FALSE}
+fisk_vdr %>% 
+  dplyr::select(Övervakningsstation, 
+         `EU id`, 
+         `MS_CD C3`, 
+         longitud, 
+         latitud, 
+         Provtagningsår, 
+         `Vattendrag lax`,
+         `Vattendrag öring`,
+         `Vattendrag totalmängd fisk`,
+         `Vattendrag antal arter`) %>% 
+  gather(variable, 
+         value, 
+         `Vattendrag lax`:`Vattendrag antal arter`, 
+         na.rm = T) %>% 
+  mutate(value = case_when(value==0 ~ NA_real_,
+                           TRUE ~value)) %>%
+  na.omit() %>% # remove rows with NAs
+  group_by(Övervakningsstation, `EU id`, `MS_CD C3`,longitud, latitud,  Provtagningsår, variable) %>% 
+  summarise(value = value %>% mean(), # calculate yearly mean
+            n = n()) %>% 
+  ungroup() %>% 
+  group_by(Övervakningsstation, `EU id`, `MS_CD C3`,longitud, latitud, variable) %>% 
+  periods(variable = Provtagningsår, filter_less_than = 10) %>%
+  mutate(n_years = n(), max_year = max(Provtagningsår)) %>%
+  filter(max_year >= 2015) %>% 
+  ungroup %>% 
+  nest(data = c(-Övervakningsstation, -`EU id`, -`MS_CD C3`,-longitud, -latitud, -variable)) %>% 
+  mutate(fit = future_map(data, ~ if (var(.x$value) == 0) {glm(formula = value ~ Provtagningsår, data = .x)
+  } else {gam(formula = value ~ s(Provtagningsår, k = unique(.x$n_years - 2)),
+              data = .x,
+              method = "REML", select = T)}, .progress = T),
+          trend = map2(fit, data, ~ predict(object = .x, newdata = .y, type = "response")),
+          resid = map(fit, ~ resid(.x, type = "pearson")))%>% 
+  unnest(c(data, trend, resid)) %>% 
+  gather(type, value, value, trend) ->
+  fisk_vdr_trends
+```
+
+```{r include=FALSE}
+fisk_vdr_trends %>%
+  filter(type == "value") %>%
+  nest(data = c(-Övervakningsstation,-`EU id`, -`MS_CD C3`, -longitud, -latitud, -variable)) %>%
+  mutate(fit = map(data, possibly(~ rkt(date = as.data.frame(.x)$Provtagningsår,
+                                        y = as.data.frame(.x)$value), 
+                                  otherwise = NA_real_)),
+         tidy = map(fit, possibly(~ rkt_out(.x), otherwise = NA_real_))) %>%
+  unnest(tidy) %>%
+  dplyr::select(-data, -fit) %>%
+  mutate(sig.stars = cut(p.value,
+                         breaks = c(1, 0.05, 0.01, 0.001, 0.0001, 0),
+                         labels = c("ns", "*", "**", "***", "****") %>% rev(), 
+                         ordered_result = T),
+         p.value = p.value %>% round(4),
+         slope = slope %>% round(4),
+         tau = tau %>% round(4)) %>%
+  replace_na(list(sig.stars = "****")) ->
+  fisk_vdr_mannkendall
+```
+
+För samtliga variabler ser processen ut som följer:
+
+ * Årsvärden för varje station finns redan i levererat fil (om årsvärden beräknas före leverans kan beräkningen i nästa omgång flyttas till bearbetningen i R)
+ * Beräkning av antal inom varje år för varje station (enbart som kontroll, bör vara 1)
+ * Beräkning av antal år per station
+ * Bortfiltrering av enstaka mätpunkter som befinner sig mer än 3 år ifrån någon annan mätpunkt i tid
+ * Bortfiltrering av stationer med färre än 10 årsmedelvärden
+ * (Varje delperiod ska ha >=10 års värden)
+ * En robust additiv modell anpassas för varje stations återstående årsmedelvärden för att skatta trend över tid
+ * Årsmedelvärden och trenden plottas ihop med outlierbedömning (standardiserad residual större än 2)
+ 
+Bedöming om trendanalyser är meningsfulla. Enstaka stationer eller för någon variabel kan det vara rimligare att bara data levereras vidare men inte trendanalyserna, t.ex.antal arter lämpar sig ofta inte för trendanalyser.
+ 
+```{r}
+
+write_excel_csv(fisk_vdr_mannkendall, "Tabeller/trender_fisk_vdr_2023.csv")
+```
+
+
+<!-- ## Vattendrag lax -->
+
+
+<!-- ```{r echo=FALSE, fig.height=20, fig.width=20, message=FALSE, warning=FALSE, out.extra='angle=90'} -->
+<!-- fisk_vdr_trends %>%  -->
+<!--   filter(variable=="Vattendrag lax") %>%  -->
+<!--   ggplot(aes(x = Provtagningsår, y = value, group = type, linetype = type, color = type)) + -->
+<!--   geom_line() + -->
+<!--   facet_wrap(~Stationsnamn+paste(`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y")+ -->
+<!--    scale_linetype_manual(values = c("value" = "dashed", "trend" = "solid"),  -->
+<!--                         labels = c("Medelvärden", "Trendvärden"))+ -->
+<!--   scale_color_manual(values = c("value" = "blue", "trend" = "red"),  -->
+<!--                         labels = c("Medelvärden", "Trendvärden")) -->
+<!-- ``` -->
+
+
+
+<!-- ## Vattendrag öring -->
+
+
+<!-- ```{r echo=FALSE, fig.height=20, fig.width=20, message=FALSE, warning=FALSE, out.extra='angle=90'} -->
+<!-- fisk_vdr_trends %>%  -->
+<!--   filter(variable=="Vattendrag öring") %>%  -->
+<!--   ggplot(aes(x = Provtagningsår, y = value, group = type, linetype = type, color = type)) + -->
+<!--   geom_line() + -->
+<!--   facet_wrap(~Stationsnamn+paste(`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y")+ -->
+<!--    scale_linetype_manual(values = c("value" = "dashed", "trend" = "solid"),  -->
+<!--                         labels = c("Medelvärden", "Trendvärden"))+ -->
+<!--   scale_color_manual(values = c("value" = "blue", "trend" = "red"),  -->
+<!--                         labels = c("Medelvärden", "Trendvärden")) -->
+<!-- ``` -->
+
+
+<!-- ##  Vattendrag totalmängd fisk -->
+
+
+<!-- ```{r echo=FALSE, fig.height=20, fig.width=20, message=FALSE, warning=FALSE, out.extra='angle=90'} -->
+<!-- fisk_vdr_trends %>%  -->
+<!--   filter(variable=="Vattendrag totalmängd fisk") %>%  -->
+<!--   ggplot(aes(x = Provtagningsår, y = value, group = type, linetype = type, color = type)) + -->
+<!--   geom_line() + -->
+<!--   facet_wrap(~Stationsnamn+paste(`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y")+ -->
+<!--    scale_linetype_manual(values = c("value" = "dashed", "trend" = "solid"),  -->
+<!--                         labels = c("Medelvärden", "Trendvärden"))+ -->
+<!--   scale_color_manual(values = c("value" = "blue", "trend" = "red"),  -->
+<!--                         labels = c("Medelvärden", "Trendvärden")) -->
+<!-- ``` -->
+
+
+<!-- ##   Vattendrag antal arter -->
+
+<!-- ```{r echo=FALSE, fig.height=20, fig.width=20, message=FALSE, warning=FALSE, out.extra='angle=90'} -->
+<!-- fisk_vdr_trends %>%  -->
+<!--   filter(variable=="Vattendrag antal arter") %>%  -->
+<!--   ggplot(aes(x = Provtagningsår, y = value, group = type, linetype = type, color = type)) + -->
+<!--   geom_line() + -->
+<!--   facet_wrap(~Stationsnamn+paste(`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y")+ -->
+<!--    scale_linetype_manual(values = c("value" = "dashed", "trend" = "solid"),  -->
+<!--                         labels = c("Medelvärden", "Trendvärden"))+ -->
+<!--   scale_color_manual(values = c("value" = "blue", "trend" = "red"),  -->
+<!--                         labels = c("Medelvärden", "Trendvärden")) -->
+<!-- ``` -->
+
+<!-- # Mann-Kendall-tester -->
+
+<!-- ```{r echo=FALSE, message=FALSE, warning=FALSE} -->
+<!-- fisk_vdr_mannkendall %>%  -->
+<!--   select(Stationsnamn,  -->
+<!--          `Stationskoordinat N/X`,  -->
+<!--          `Stationskoordinat E/Y`,  -->
+<!--          variable,  -->
+<!--          p.value,  -->
+<!--          statistic,  -->
+<!--          slope,  -->
+<!--          tau,  -->
+<!--          sig.stars) %>%  -->
+<!--   datatable() -->
+
+<!-- ``` -->
+
+
+
+

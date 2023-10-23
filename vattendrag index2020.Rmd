@@ -1,0 +1,215 @@
+---
+title: "Index - vattendrag"
+date: "2019-03-01"
+output:
+  html_document:
+    df_print: paged
+  html_notebook: default
+  word_document: default
+---
+
+
+
+# Trendanalys
+
+```{r include=FALSE}
+#Initial inladdning av paket och egenskrivna funktioner
+source("shared_functions.R", encoding = "UTF-8")
+```
+
+
+```{r}
+  tibble(dir="Indata2022/Vattendrag/Vattenkemi/") %>%
+    mutate(files = map(dir, ~list.files(here(.x)))) %>%
+    unnest(files) %>%
+    transmute(path = paste0(dir, files)) %>%
+    mutate(data = map(path, ~import_slu_mvm_data_excel(here(.x), numeric_var = 31, sheet = 5))) %>%
+    mutate(path = str_extract(basename(path), "^[^_]+(?=_)"),
+           Regionala = if_else(path %in% c("RMÖ","SRK"), 1, 0),
+           data = map2(data, Regionala, ~.x %>% mutate(Regionala = .y,
+                                                       `Vattenzon(P,L,SP)`=`Vattenzon(P,L,SP)`%>%as.character()))) %>%
+     pull(data) %>%
+    reduce(full_join) %>%
+    dplyr::select(1:30, Regionala, everything()) ->
+    indexberakningar_vdr
+```
+
+
+```{r include=FALSE}
+indexberakningar_vdr %>% 
+  dplyr::select(1:ProvId, 
+         Regionala, 
+         Provtagningsår, 
+         Provtagningsmånad,
+         `Max provdjup (m)`, 
+         ASPT,
+         `MISA`,
+         DJ) %>% 
+  gather(variable, value, ASPT:DJ, na.rm = T) %>% 
+  mutate(value = ifelse(variable=="Kfyll (µg/l)"&`Max provdjup (m)`>2, NA_real_, value)) %>% # set Kfyll values for maximum sample depth more than 2 meter to NA
+  drop_na(value) %>% # remove rows with NAs
+  dplyr::select(-`Max provdjup (m)`) %>% 
+  filter((variable %in% c("Kfyll (µg/l)",  "Biovolym (mm3/l)", "Cyanobacteria (mm3/l)")
+         & Provtagningsmånad %in% c(7,8)) | # select values from July and August 
+          (variable %in%  c("BQI", "IPS", "ACID", "ASPT", "MILA 2018") & Provtagningsmånad %in% c(9,10,11)))%>%
+  #select autumn values for indiced
+  group_by(Stationsnamn, `MD-MVM Id`, `EU id`,  `MS_CD C3`,`Stationskoordinat N/X`, `Stationskoordinat E/Y`, Provtagningsår, variable, Regionala) %>% 
+  summarise(value = value %>% mean(), # calculate yearly mean
+            n = n()) %>% 
+  ungroup() %>% 
+  distinct() %>% 
+  group_by(Stationsnamn, `EU id`, `MS_CD C3`, `Stationskoordinat N/X`, `Stationskoordinat E/Y`, variable) %>% 
+  periods(variable =Provtagningsår, filter_less_than = 10, max_year=2017) %>%
+  mutate(n_years=n(), max_year = max(Provtagningsår)) %>%
+  filter(max_year >= 2015) %>% 
+  ungroup() ->vplank_index_data
+```
+
+
+```{r include=FALSE}
+#group_by(Stationsnamn, `Stationskoordinat N/X`, `Stationskoordinat E/Y`, variable, Regionala)# %>%
+ # summarise(n_years = min(n_years)) %>% View
+vplank_index_data%>%
+  nest(data=c(-Stationsnamn, -`EU id`, -`MS_CD C3`, -`Stationskoordinat N/X`, -`Stationskoordinat E/Y`, -variable))%>% 
+  mutate(fit = future_map(data, ~if(var(.x$value)==0){glm(formula=value~Provtagningsår, data=.x)}else{
+                           # gam(formula = value ~ s(Provtagningsår, k=unique(.x$n_years-2)),
+                              gam(formula = value ~ s(Provtagningsår, k=unique(floor(.x$n_years/2))),
+                              data=.x, 
+                              method="REML", select=T,                        )}, .progress=T),
+          trend = map2(fit, data, ~ predict(object = .x, newdata = .y, type="response")),
+          resid = map(fit, ~resid(.x, type="pearson"))) %>% 
+  unnest(c(data, trend, resid)) %>% 
+  gather(type, value, value, trend) ->
+  trends_vplank_index
+```
+
+```{r include=FALSE}
+trends_vplank_index %>% 
+  filter(type=="value") %>% 
+  nest(data = c(-Stationsnamn, -`EU id`, -`MS_CD C3`, -`Stationskoordinat N/X`, -`Stationskoordinat E/Y`,-Regionala,-variable)) %>% 
+  mutate(fit = map(data, possibly(~rkt(date=as.data.frame(.x)$Provtagningsår, 
+                                       y=as.data.frame(.x)$value), otherwise=NA_real_)),
+         tidy = map(fit, possibly(~rkt_out(.x), otherwise=NA_real_))) %>% 
+  unnest(tidy) %>% 
+  dplyr::select(-data, -fit) %>% 
+  mutate(sig.stars=cut(p.value, breaks=c(1, 0.05,0.01,0.001,0.0001,0), 
+                       labels=c("ns","*","**","***","****") %>% rev, ordered_result = T),
+         p.value = p.value %>% round(4),
+         slope = slope %>% round(4), 
+         tau = tau %>% round(4)) %>% 
+  replace_na(list(sig.stars="****")) -> 
+  vaxtplankton_mannkendall
+```
+
+För samtliga variabler ser processen ut som följer:
+
+ * Värden från juli och augusti filtreras ut
+ * Eventuell variabelspecifik filtrering (se klorofyll)
+ * Medelvärdesberäkning för varje år för varje station
+ * Beräkning av antal inom varje år för varje station
+ * Beräkning av antal år för station
+ * Bortfiltrering av enstaka mätpunkter som befinner sig mer än 3 år ifrån någon annan mätpunkt i tid
+ * Bortfiltrering av stationer med färre än 10 årsmedelvärden
+ * (Varje delperiod ska ha >=10 års värden)
+ * En robust additiv modell anpassas för varje stations återstående årsmedelvärden för att skatta trend över tid
+ * Årsmedelvärden och trenden plottas ihop med outlierbedömning (standardiserad residual större än 2)
+ 
+
+<!-- ## Klorofyll -->
+
+<!-- För klorofyll filtreras värden där maxdjupet är större än 2 bort.  -->
+
+<!-- ```{r echo=FALSE, fig.height=20, fig.width=20, message=FALSE, warning=FALSE, out.extra='angle=90'} -->
+<!-- trends %>%  -->
+<!--   filter(variable=="Kfyll (µg/l)") %>%  -->
+<!--   ggplot(aes(x = Provtagningsår, y = value, group = type, linetype = type, color = type)) + -->
+<!--   geom_line() + -->
+<!--   facet_wrap(~Stationsnamn+paste(`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y")+ -->
+<!--    scale_linetype_manual(values = c("value" = "dashed", "trend" = "solid"),  -->
+<!--                         labels = c("Medelvärden", "Trendvärden"))+ -->
+<!--   scale_color_manual(values = c("value" = "blue", "trend" = "red"),  -->
+<!--                         labels = c("Medelvärden", "Trendvärden"))+ -->
+<!--  # geom_point(data = trends %>%  -->
+<!--   #filter(variable=="Kfyll (µg/l)",outlier==T), aes(group=NULL, color=NULL), color="red")+ -->
+<!--   labs(y="Mätvärden", color="Tidsserie",linetype = "Tidsserie", x="Provtagningsår") -->
+<!-- ``` -->
+
+
+<!-- ## Biovolym -->
+
+<!-- ### Växtplankton (totalt) -->
+
+<!-- ```{r echo=FALSE, fig.height=20, fig.width=20, message=FALSE, warning=FALSE, out.extra='angle=90'} -->
+<!-- trends %>%  -->
+<!--   filter(variable=="Biovolym (mm3/l)") %>%  -->
+<!--   ggplot(aes(x = Provtagningsår, y = value, group = type, linetype = type, color = type)) + -->
+<!--   geom_line() + -->
+<!--   facet_wrap(~Stationsnamn+paste(`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y")+ -->
+<!--    scale_linetype_manual(values = c("value" = "dashed", "trend" = "solid"),  -->
+<!--                         labels = c("Medelvärden", "Trendvärden"))+ -->
+<!--   scale_color_manual(values = c("value" = "blue", "trend" = "red"),  -->
+<!--                         labels = c("Medelvärden", "Trendvärden"))+ -->
+<!--  # geom_point(data = trends %>%  -->
+<!--  #filter(variable=="Biovolym (mm3/l)",outlier==T), aes(group=NULL, color=NULL), color="red")+ -->
+<!--   labs(y="Mätvärden", color="Tidsserie",linetype = "Tidsserie", x="Provtagningsår") -->
+<!-- ``` -->
+
+<!-- ### Cyanobakterier -->
+
+<!-- ```{r echo=FALSE, fig.height=20, fig.width=20, message=FALSE, warning=FALSE, out.extra='angle=90'} -->
+<!-- trends %>%  -->
+<!--   filter(variable=="Cyanobacteria (mm3/l)") %>%  -->
+<!--   ggplot(aes(x = Provtagningsår, y = value, group = type, linetype = type, color = type)) + -->
+<!--   geom_line() + -->
+<!--   facet_wrap(~Stationsnamn+paste(`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y")+ -->
+<!--    scale_linetype_manual(values = c("value" = "dashed", "trend" = "solid"),  -->
+<!--                         labels = c("Medelvärden", "Trendvärden"))+ -->
+<!--   scale_color_manual(values = c("value" = "blue", "trend" = "red"),  -->
+<!--                         labels = c("Medelvärden", "Trendvärden"))+ -->
+<!--  # geom_point(data = trends %>%  -->
+<!--  # filter(variable=="Cyanobacteria (mm3/l)",outlier==T), aes(group=NULL, color=NULL), color="red")+ -->
+<!--   labs(y="Mätvärden", color="Tidsserie",linetype = "Tidsserie", x="Provtagningsår") -->
+<!-- ``` -->
+
+<!-- # Mann-Kendall-tester -->
+
+<!-- ```{r echo=FALSE, message=FALSE, warning=FALSE} -->
+<!-- vaxtplankton_mannkendall %>%  -->
+<!--   select(Stationsnamn, `Stationskoordinat N/X`, `Stationskoordinat E/Y`, variable, p.value, statistic, slope, tau, sig.stars) %>% datatable() -->
+
+<!-- ``` -->
+
+<!-- ## Biovolym -->
+
+### IPS, ACID
+
+```{r echo=FALSE, fig.height=20, fig.width=20, message=FALSE, warning=FALSE, out.extra='angle=90'}
+ trends_vplank_index %>%
+  filter(variable=="MILA 2018") %>%
+  ggplot(aes(x = Provtagningsår, y = value, group = type, linetype = type, color = type)) +
+  geom_line() +
+  facet_wrap(~Stationsnamn+paste(`Stationskoordinat N/X`,`Stationskoordinat E/Y`), scales = "free_y")+
+   scale_linetype_manual(values = c("value" = "dashed", "trend" = "solid"),
+                        labels = c("Medelvärden", "Trendvärden"))+
+  scale_color_manual(values = c("value" = "blue", "trend" = "red"),
+                        labels = c("Medelvärden", "Trendvärden"))+
+ # geom_point(data = trends %>%
+ #filter(variable=="Biovolym (mm3/l)",outlier==T), aes(group=NULL, color=NULL), color="red")+
+  labs(y="Mätvärden", color="Tidsserie",linetype = "Tidsserie", x="Provtagningsår")
+```
+```{r}
+joined_dataset%>%filter(Stationsnamn=="Grissjön")%>%ggplot(aes(x=Provdatum, y=BQI))+
+  geom_point()+
+  facet_wrap(~Stationsnamn)
+
+joined_dataset%>%filter(!is.na(ASPT))%>%ggplot(aes(x=Provdatum, y=ASPT))+
+  geom_point()+
+  facet_wrap(~Stationsnamn)
+
+joined_dataset%>%filter(Stationsnamn=="Vingån, Vingäng")%>%ggplot(aes(x=Provdatum, y=DJ))+
+  geom_point()+
+  facet_wrap(~Stationsnamn)
+```
+
+
+
